@@ -1,0 +1,44 @@
+% !TeX root = ../main.tex
+
+\section{Project Plan and Evaluation}
+\subsection*{Dataset and Access}
+\todo{Name the primary dataset, provider, stable access link, license, approximate size, features, and labels if needed. Explain how it will be downloaded or requested, preprocessing, and the unit of analysis. Name a readily available fallback.}
+
+\subsection*{Implementation and Feasibility}
+\todo{Specify the model/library, visualization framework, data interface, and compute needs. Explain separation of training, validation, and test data if training is involved, reproducibility (versions and seeds), and how sensitive fields or misleading visual summaries will be handled if relevant. Cite methods and data sources.}
+
+\subsection*{Milestones and Provisional Ownership} Confirm roles together; add dates after the course timeline is known.
+\par
+{\small
+\begin{tabularx}{\textwidth}{@{}p{0.12\textwidth}p{0.14\textwidth}X@{}}
+\toprule
+\textbf{Stage} & \textbf{Lead} & \textbf{Completion evidence / target date} \\
+\midrule
+Scope & All & Selected paper, question, dataset access; by Oct.\ 20. \\
+Data + ML &  & \todo{Runnable preprocessing and baseline; date.} \\
+Visual design &  & \todo{Task-driven sketches and interactive core; date.} \\
+Integration &  & \todo{End-to-end model/view pipeline; date.} \\
+Evaluation &  & \todo{Pilot, comparison results, and analysis; date.} \\
+Delivery & All & \todo{Reproducible demo, report, and limitations; date.} \\
+\bottomrule
+\end{tabularx}}
+
+\subsection*{Evaluation Design}
+\todo{Define representative tasks, a baseline condition, and the same data and task difficulty across conditions. Choose a feasible participant study, expert review, or reproducible benchmark and justify it. If using participants, specify recruitment, target count, ordering/counterbalancing, and a pilot.}
+
+\subsection*{Measures and Success Criteria}
+\todo{Choose a primary outcome tied to the research question (e.g., task correctness or error discovery), a secondary measure (e.g., completion time or usability), and a justified target. For ML performance, select a task-appropriate metric and held-out protocol. Specify how comparisons, uncertainty, and qualitative feedback will be analyzed; a small exploratory study should not imply broad generalization.}
+
+\subsection*{Risks and Fallback}
+\todo{Name the most likely data, compute, integration, or recruitment failure and its fallback. State what can still be evaluated if the optional extension or user study is infeasible, and what conclusions that fallback cannot support.}
+
+\begingroup
+\small
+\renewcommand{\refname}{References}
+\bibliographystyle{plainnat}
+% No fabricated entries: cited, verified entries will appear here after editing.
+\IfFileExists{\jobname.bbl}{}{%
+\subsection*{References}
+\todo{Add and cite the key paper, related work, and dataset source using references.bib. Verify all entries and resolve all citations before submission.}}
+\bibliography{references}
+\endgroup
