@@ -2,27 +2,44 @@
 
 \section{Proposed Project and Innovation}
 \subsection*{System and User Workflow}
-\textbf{What we intend to build.}
-\todo{Describe the working artifact, its intended user, its inputs and outputs, and the single task it must support end to end. Specify whether the ML model is pretrained, trained by the team, or updated through user interaction.}
+
+\textbf{Project Goals.} Our project aims to investigate \textbf{what makes an argument persuasive} and whether certain writing techniques are more effective depending on topic and conversational context. We want explore questions such as: 
 
 \begin{enumerate}
-    \item \textbf{Load and prepare:} \todo{What data enters the system? What preprocessing and model computation occur?}
-    \item \textbf{Inspect:} \todo{What does the user see first, and which visual encoding reveals the relevant patterns?}
-    \item \textbf{Interact:} \todo{Specify selection, filtering, linked views, comparison, or another interaction and what updates as a result.}
-    \item \textbf{Act and verify:} \todo{What decision or insight can the user produce, and how can they inspect supporting evidence?}
+    \item Are certain rhetorical strategies more effective for particular topics?
+    \item Does participating in a longer discussion with multiple comments increase the likelihood of changing someone's opinion?
+    \item Are polite, well-structured arguments more persuasive than confrontational ones? 
+    \item How do appeals to ethos (credibility), pathos (emotion), and logos (logic) influence an argument's effectiveness?
 \end{enumerate}
 
+By analyzing these elements, we hope to identify patterns that help explain why some arguments successfully change people's minds while other don't. Ultimately, our goal is not simply to predict if an argument is persuasive, but to help users understand why certain arguments may be more effective than others and how rhetorical choices interact with context.
+
+\textbf{Project Artifacts.} Our working artifact will be an interactive ML-powered argument analysis and visualization tool, intended for writers, students, researchers, and individuals seeking to improve the persuasiveness in their writing. 
+
+The system will accept a written argument as text (or document upload), with a short form to collect information about the intended topic, audience, and additional context. It will combine multiple pretrained and potentially fine-tuned machine learning models to predict and explain the argument's persuasiveness. 
+
+Rather than providing only a single persuasiveness score, the system will visually decompose the argument into meaningful components. For example, it may: 
+
+\begin{enumerate}
+    \item \textbf{Identify rhetorical appeals:} Highlight passages that employ ethos, pathos, or logos.
+    \item \textbf{Evaluate argument quality:} Estimate characteristics such as logical coherence, clarity, evidence use, politeness, and argument development.
+    \item \textbf{Predict persuasiveness:} Estimate how persuasive the argument is based on patterns learned from annotated datasets.
+    \item \textbf{Visualize the argument's structure: }Show how different rhetorical strategies and writing characteristics are distributed throughout the text.
+    \item \textbf{Provide contextual feedback:} Explore whether specific techniques are more effective for the selected topic or intended audience, where supported by the available data.
+    \item \textbf{Grammar:} Are arguments more persuasive if grammar score is higher?
+\end{enumerate}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{proposal/figures/visual-idea.png}
+    \caption{Proposed interface for visualizing argument persuasiveness, rhetorical strategies, writing components, and ML-generated feedback.}
+    \label{fig:placeholder}
+\end{figure}
+
+\textbf{Approach.} Our initial approach will use existing pretrained models, supplemented by models fine-tuned by our team on argument quality, rhetorical strategy, grammar analysis, and persuasion datasets where appropriate. We may also investigate combining predictions from multiple specialized models into a unified assessment. The primary end-to-end task is to allow a user to submit an argument and receive an interpretable visual breakdown of its persuasive characteristics, along with a predicted persuasiveness assessment and explanations of the features contributing to that prediction.
+
 \subsection*{Connection Between Visualization and Machine Learning}
-\begin{tabularx}{\textwidth}{@{}p{0.23\textwidth}X@{}}
-\toprule
-\textbf{Component} & \textbf{Design commitment} \\
-\midrule
-ML task and method & \todo{Task, candidate model, inputs, and outputs; justify the simplest suitable method.} \\
-Visual representation & \todo{Map model/data attributes to marks, position, color, or other encodings; explain the choice.} \\
-User interaction & \todo{Specify how user actions change a view, a comparison, or the model. Clarify whether retraining occurs.} \\
-Analytical benefit & \todo{Explain what a user can learn or do that raw predictions or a static table do not readily support.} \\
-\bottomrule
-\end{tabularx}
+
 
 \subsection*{Innovation and Comparison With Existing Work}
 \textbf{Closest existing approach.}

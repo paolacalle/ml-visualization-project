@@ -2,10 +2,15 @@
 
 \section{Project Plan and Evaluation}
 \subsection*{Dataset and Access}
-\todo{Name the primary dataset, provider, stable access link, license, approximate size, features, and labels if needed. Explain how it will be downloaded or requested, preprocessing, and the unit of analysis. Name a readily available fallback.}
+
+% \todo{Name the primary dataset, provider, stable access link, license, approximate size, features, and labels if needed. Explain how it will be downloaded or requested, preprocessing, and the unit of analysis. Name a readily available fallback.}
+
+The primary dataset will be the ChangeMyView \cite{tan+etal:16a} data, pulled from the Reddit forum ChangeMyView between January 1st, 2013, and September 1st, 2015 using the Reddit API. The data contains over 3,000 ChangeMyView discussions in JSON format, with original post, comments, and comment attributes (e.g., likes, user, banned, removed\_reason). Comments can be replied to by DeltaBot, indicating that the original poster, or other reader, changed thier view. The dataset is approximately 3 GB in size, and can easily be downloaded directly from the author's personal site. 
 
 \subsection*{Implementation and Feasibility}
 \todo{Specify the model/library, visualization framework, data interface, and compute needs. Explain separation of training, validation, and test data if training is involved, reproducibility (versions and seeds), and how sensitive fields or misleading visual summaries will be handled if relevant. Cite methods and data sources.}
+
+
 
 \subsection*{Milestones and Provisional Ownership} Confirm roles together; add dates after the course timeline is known.
 \par
@@ -31,6 +36,7 @@ Delivery & All & \todo{Reproducible demo, report, and limitations; date.} \\
 
 \subsection*{Risks and Fallback}
 \todo{Name the most likely data, compute, integration, or recruitment failure and its fallback. State what can still be evaluated if the optional extension or user study is infeasible, and what conclusions that fallback cannot support.}
+
 
 \begingroup
 \small
