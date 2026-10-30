@@ -2,7 +2,7 @@ import argparse
 from pathlib import Path
 
 from SupabaseConnection import Database
-from loaders import posts
+from loaders import op_labels
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -21,26 +21,20 @@ def main():
     db = Database()
 
     try:
-        print("Before:", db.execute("posts_size.sql"))
-
-        if args.migrate_posts:
-            db.execute("update_posts.sql")
-            print("Posts migration completed.")
-
-        # Keep the archive sample small while reviewing the schema.
-        posts.load_posts(
+        op_labels.load_op_label(
             ARCHIVE_PATH,
             db,
-            limit_per_source=2,
+            post_id="t3_37i8f6",
         )
 
-        rows = db.execute("sample_posts.sql")
-
-        for row in rows:
-            post_id, split, title = row[:3]
-            print(f"\n{post_id} | {split}\n{title}")
-
-        print("\nAfter:", db.execute("posts_size.sql"))
+        print(db.execute(
+            """
+            SELECT post_id, delta_label, source_id
+            FROM cmv.op_labels
+            WHERE post_id = %s;
+            """,
+            ("t3_37i8f6",),
+        ))
     finally:
         db.close()
 

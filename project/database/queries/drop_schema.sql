@@ -10,3 +10,5 @@ SET LOCAL search_path TO cmv;
 -- DROP TABLE IF EXISTS comments;
 -- DROP TABLE IF EXISTS posts;
 -- DROP TABLE IF EXISTS sources;
+
+ALTER TABLE cmv.comments DROP COLUMN extra_json;
