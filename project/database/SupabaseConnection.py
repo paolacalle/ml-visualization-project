@@ -1,5 +1,4 @@
 import psycopg
-from urllib.parse import quote
 from dotenv import load_dotenv
 from pathlib import Path
 import os
@@ -10,9 +9,6 @@ class Database:
     def __init__(self):
         self.connection = self.connect()
         
-    def clean_pass(self, password):
-        return quote(password)
-
     def connect(self):
         load_dotenv()
         connection = psycopg.connect(
