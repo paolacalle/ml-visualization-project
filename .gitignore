@@ -2,6 +2,7 @@
 *project/data/raw/cmv.tar.bz2
 project/data/processed/cmv-text/
 project/data/
+project-plans/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
