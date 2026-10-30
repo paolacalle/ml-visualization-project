@@ -25,12 +25,22 @@ class Database:
         )
         return connection
     
-    def run_query(self, sql_path):
+    def execute(self, sql_filename):
+        sql_path = (
+            Path(__file__).resolve().parent
+                / "queries"
+                / sql_filename
+        )
+        
         sql = Path(sql_path).read_text(encoding="utf-8")
 
         with self.connection.transaction():
             with self.connection.cursor() as cursor:
                 cursor.execute(sql)
+                
+                # has something to return
+                if cursor.description is not None:
+                    return cursor.fetchall()
 
     def close(self):
         if self.connection is not None:
@@ -41,13 +51,7 @@ if __name__ == "__main__":
     db = Database()
 
     try:
-        sql_path = (
-            Path(__file__).resolve().parent
-            / "queries"
-            / "create_schema.sql"
-        )
-        db.run_query(sql_path)
-        print("Schema created.")
+        print(db.execute("test.sql"))
     finally:
         db.close()
     
