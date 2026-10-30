@@ -21,20 +21,17 @@ class Database:
         )
         return connection
     
-    def execute(self, sql_filename):
-        sql_path = (
-            Path(__file__).resolve().parent
-                / "queries"
-                / sql_filename
-        )
-        
-        sql = Path(sql_path).read_text(encoding="utf-8")
+    def execute(self, query, params=None, *, is_file=True):
+        if is_file:
+            sql_path = Path(__file__).resolve().parent / "queries" / query
+            sql = sql_path.read_text(encoding="utf-8")
+        else:
+            sql = query
 
         with self.connection.transaction():
             with self.connection.cursor() as cursor:
-                cursor.execute(sql)
-                
-                # has something to return
+                cursor.execute(sql, params)
+
                 if cursor.description is not None:
                     return cursor.fetchall()
 
@@ -47,7 +44,16 @@ if __name__ == "__main__":
     db = Database()
 
     try:
-        print(db.execute("test.sql"))
+        print(db.execute("create_schema.sql"))
+        
+        # print(db.execute("SELECT 1;", is_file=False))
+        
+        # print(db.execute(
+        #     "SELECT * FROM cmv.posts WHERE post_id = %s;",
+        #     ("t3_example",),
+        #     is_file=False,
+        # ))
+        
     finally:
         db.close()
     

@@ -3,7 +3,7 @@ CREATE SCHEMA IF NOT EXISTS cmv;
 SET LOCAL search_path TO cmv;
 
 CREATE TABLE sources (
-    source_id TEXT PRIMARY KEY,
+    source_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     archive_member TEXT NOT NULL UNIQUE,
     task TEXT NOT NULL
         CHECK (task IN ('all', 'op_task', 'pair_task')),
@@ -20,7 +20,7 @@ CREATE TABLE posts (
     author TEXT,
     created_utc DOUBLE PRECISION,
     content_available BOOLEAN NOT NULL DEFAULT FALSE,
-    source_id TEXT REFERENCES sources(source_id),
+    source_id BIGINT REFERENCES sources(source_id),
     extra_json JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
@@ -34,7 +34,7 @@ CREATE TABLE comments (
     created_utc DOUBLE PRECISION,
     score INTEGER,
     content_available BOOLEAN NOT NULL DEFAULT FALSE,
-    source_id TEXT REFERENCES sources(source_id),
+    source_id BIGINT REFERENCES sources(source_id),
     extra_json JSONB NOT NULL DEFAULT '{}'::jsonb,
 
     UNIQUE (comment_id, post_id),
@@ -52,14 +52,14 @@ CREATE TABLE comments (
 CREATE TABLE op_labels (
     post_id TEXT PRIMARY KEY REFERENCES posts(post_id),
     delta_label BOOLEAN NOT NULL,
-    source_id TEXT NOT NULL REFERENCES sources(source_id),
+    source_id BIGINT NOT NULL REFERENCES sources(source_id),
     extra_json JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
 CREATE TABLE pairs (
     pair_id TEXT PRIMARY KEY,
     post_id TEXT NOT NULL REFERENCES posts(post_id),
-    source_id TEXT NOT NULL REFERENCES sources(source_id),
+    source_id BIGINT NOT NULL REFERENCES sources(source_id),
     source_line INTEGER NOT NULL CHECK (source_line > 0),
     extra_json JSONB NOT NULL DEFAULT '{}'::jsonb,
 
