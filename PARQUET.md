@@ -1,5 +1,10 @@
 # Export CMV text to Parquet
 
+Using the existing dataset? Follow the
+[one-time team download guide](project/database/TEAM_DATA.md) instead of rerunning
+the exporter. It documents the exact private bucket/prefix, local layout, and
+complete release validation.
+
 `export_text_parquet.py` streams the raw archive, writes post/comment text with
 Zstandard compression, and creates an index mapping each discussion to its files.
 It does not connect to PostgreSQL. IDs and the original train/heldout split are
@@ -62,11 +67,11 @@ README for a retrieval example. Cloud uploading is a separate step.
 ## Local validation and tests
 
 ```bash
-python project/database/validate_text_dataset.py
 python -m unittest discover -s project/tests -v
 ```
 
-The validator checks all local Parquet checksums, sizes, schemas, row counts,
-and discussion-index references against the manifest. These operations do not
-connect to PostgreSQL or cloud storage. See `project/tests/README.md` for test
-coverage and validating a separate downloaded copy.
+Use `TextStore.validate()` as shown in the
+[team download guide](project/database/TEAM_DATA.md#4-verify-the-complete-download-and-retrieve-the-sample)
+to check all local Parquet checksums, sizes, schemas, row counts, and index
+references. These operations do not connect to PostgreSQL or cloud storage.
+See `project/tests/README.md` for the test command.
