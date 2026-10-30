@@ -1,7 +1,9 @@
 import json
+import hashlib
+from collections import Counter
 from pathlib import Path
+import pyarrow as pa
 import pyarrow.parquet as pq
-from SupabaseConnection import Database
 
 
 class TextStore:
@@ -30,6 +32,112 @@ class TextStore:
         self.index = json.loads(
             index_path.read_text(encoding="utf-8")
         )
+
+    def _read_table(self, filename, columns, filters):
+        path = self.dataset_dir / filename
+
+        if not path.is_file():
+            raise FileNotFoundError(f"Missing Parquet file: {path}")
+
+        try:
+            return pq.read_table(path, columns=columns, filters=filters)
+        except (pa.ArrowInvalid, OSError) as exc:
+            raise ValueError(f"Cannot read Parquet file {path}: {exc}") from exc
+
+    @staticmethod
+    def _verify_file(path, expected):
+        if not path.is_file():
+            raise FileNotFoundError(f"Missing dataset file: {path}")
+
+        if path.stat().st_size != expected["bytes"]:
+            raise ValueError(f"File size mismatch: {path}")
+
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            while block := stream.read(1024 * 1024):
+                digest.update(block)
+
+        if digest.hexdigest() != expected["sha256"]:
+            raise ValueError(f"Checksum mismatch: {path}")
+
+    def validate(self):
+        """Check the complete local release; normal lookups do not hash files."""
+        index_info = self.manifest["discussion_index"]
+        index_path = self.dataset_dir / index_info["path"]
+        self._verify_file(index_path, index_info)
+        disk_index = json.loads(index_path.read_text(encoding="utf-8"))
+        if disk_index != self.index:
+            raise ValueError("In-memory discussion index differs from the release index")
+
+        files = {}
+        totals = Counter()
+        for entry in self.manifest["files"]:
+            filename = entry["path"]
+            if filename in files:
+                raise ValueError(f"Duplicate file in manifest: {filename}")
+            files[filename] = entry
+            path = self.dataset_dir / filename
+            self._verify_file(path, entry)
+            try:
+                metadata = pq.read_metadata(path)
+                schema = pq.read_schema(path)
+            except (pa.ArrowInvalid, OSError) as exc:
+                raise ValueError(f"Cannot read Parquet file {path}: {exc}") from exc
+
+            if metadata.num_rows != entry["rows"]:
+                raise ValueError(f"Parquet row count mismatch: {path}")
+
+            kind = Path(filename).parts[0]
+            expected_columns = {
+                "posts": ["post_id", "title", "body"],
+                "comments": ["comment_id", "post_id", "body"],
+            }.get(kind)
+            if expected_columns is None or schema.names != expected_columns:
+                raise ValueError(f"Unexpected Parquet columns: {path}")
+            if any(field.type != pa.string() for field in schema):
+                raise ValueError(f"Unexpected Parquet column types: {path}")
+            totals[kind] += metadata.num_rows
+
+        # Validate every index pointer and reconcile its counts with each file.
+        indexed_rows = Counter()
+        for post_id, location in self.index.items():
+            split = location["split"]
+            if split not in {"train", "heldout"}:
+                raise ValueError(f"Invalid split in index for {post_id}")
+
+            post_file = location["post_file"]
+            if post_file not in files or not post_file.startswith(f"posts/split={split}/"):
+                raise ValueError(f"Invalid post file reference for {post_id}: {post_file}")
+            indexed_rows[post_file] += 1
+
+            count = location["comment_count"]
+            comment_file = location["comment_file"]
+            if type(count) is not int or count < 0:
+                raise ValueError(f"Invalid comment count for {post_id}")
+            if comment_file is None:
+                if count != 0:
+                    raise ValueError(f"Missing comment file for nonempty post {post_id}")
+            else:
+                if comment_file not in files or not comment_file.startswith(f"comments/split={split}/"):
+                    raise ValueError(f"Invalid comment file reference for {post_id}: {comment_file}")
+                indexed_rows[comment_file] += count
+
+        for filename, entry in files.items():
+            if indexed_rows[filename] != entry["rows"]:
+                raise ValueError(f"Index row count mismatch: {filename}")
+
+        for kind in ("posts", "comments"):
+            if totals[kind] != sum(source[kind] for source in self.manifest["sources"]):
+                raise ValueError(f"Source/Parquet count mismatch: {kind}")
+
+        return {
+            "version": self.version,
+            "parquet_files": len(files),
+            "post_rows": totals["posts"],
+            "comment_rows": totals["comments"],
+            "index_posts": len(self.index),
+            "index_checksum_verified": True,
+        }
     
     def get_post(self, post_id):
         location = self.index.get(post_id)
@@ -37,8 +145,8 @@ class TextStore:
         if location is None: 
             raise KeyError(f"Unknown post ID: {post_id}")
         
-        table = pq.read_table(
-            self.dataset_dir / location["post_file"],
+        table = self._read_table(
+            location["post_file"],
             columns=["post_id", "title", "body"],
             filters=[("post_id", "=", post_id)],
         )
@@ -58,10 +166,12 @@ class TextStore:
             raise KeyError(f"Unknown post ID: {post_id}")
         
         if location["comment_file"] is None:
+            if location["comment_count"] != 0:
+                raise ValueError(f"Missing comment file for nonempty post {post_id}")
             return []
         
-        table = pq.read_table(
-            self.dataset_dir / location["comment_file"],
+        table = self._read_table(
+            location["comment_file"],
             columns=["comment_id", "post_id", "body"],
             filters=[("post_id", "=", post_id)],
         )
@@ -96,8 +206,8 @@ class TextStore:
         bodies = {}
 
         for filename, comment_ids in files.items():
-            table = pq.read_table(
-                self.dataset_dir / filename,
+            table = self._read_table(
+                filename,
                 columns=["comment_id", "post_id", "body"],
                 filters=[("comment_id", "in", list(comment_ids))],
             )
@@ -120,62 +230,3 @@ class TextStore:
 
         return enriched
 
-        
-if __name__ == "__main__":
-    """Example of how to use this class."""
-    project_dir = Path(__file__).resolve().parents[1]
-    
-    print(project_dir)
-
-    store = TextStore(
-        project_dir / "data/processed/cmv-text/v1"
-    )
-    
-
-    print("Dataset version:", store.version)
-    print("Posts indexed:", len(store.index))
-    print("Sample location:", store.index["t3_37i8f6"])
-    
-    post = store.get_post("t3_37i8f6")
-
-    print("Post:", post["post_id"])
-    print("Title:", post["title"])
-    print("Body preview:", (post["body"] or "")[:200])
-    
-    comments = store.get_comments("t3_37i8f6")
-
-    print("Comments:", len(comments))  # expect: 1367
-
-    if comments:
-        print(json.dumps(comments[0], indent=2, ensure_ascii=False))
-        
-    db = Database()
-
-    try:
-        result = db.execute(
-            """
-            SELECT comment_id, post_id, score, parent_comment_id
-            FROM cmv.comments
-            WHERE post_id = %s AND content_available = TRUE
-            ORDER BY created_utc, comment_id
-            LIMIT 5;
-            """,
-            ("t3_37i8f6",),
-        )
-
-        columns = (
-            "comment_id",
-            "post_id",
-            "score",
-            "parent_comment_id",
-        )
-        rows = [dict(zip(columns, row)) for row in result]
-
-        enriched = store.attach_comment_text(rows)
-
-        for row in enriched:
-            print(row["comment_id"], "score:", row["score"])
-            print((row["body"] or "")[:3])
-            print()
-    finally:
-        db.close()

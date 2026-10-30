@@ -8,7 +8,7 @@ preserved; text is unchanged. Metadata and labels are not included in this expor
 From the repository root, with your project environment activated:
 
 ```bash
-python -m pip install -r project/database/requirements-parquet.txt
+python -m pip install -r requirements.txt
 python project/database/export_text_parquet.py
 ```
 
@@ -58,3 +58,15 @@ The original measured export contains 20,626 posts and 1,260,266 comments in
 33 Parquet files, approximately 235 MB including its index and manifest. Results
 can vary with the input archive and dependency version. See the generated export's
 README for a retrieval example. Cloud uploading is a separate step.
+
+## Local validation and tests
+
+```bash
+python project/database/validate_text_dataset.py
+python -m unittest discover -s project/tests -v
+```
+
+The validator checks all local Parquet checksums, sizes, schemas, row counts,
+and discussion-index references against the manifest. These operations do not
+connect to PostgreSQL or cloud storage. See `project/tests/README.md` for test
+coverage and validating a separate downloaded copy.
