@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import pyarrow.parquet as pq
+from SupabaseConnection import Database
 
 
 class TextStore:
@@ -69,8 +70,59 @@ class TextStore:
             raise ValueError(f"Comment count mismatch for {post_id}")
 
         return table.to_pylist()
+    
+    def attach_comment_text(self, rows):
+        rows = list(rows)
+        files = {}
+        
+        # group requests so each file is read once
+        for row in rows:
+            post_id = row["post_id"]
+            comment_id = row["comment_id"]
+
+            location = self.index.get(post_id)
+
+            if location is None:
+                raise KeyError(f"Unknown post ID: {post_id}")
+
+            filename = location["comment_file"]
+
+            if filename is None:
+                raise KeyError(f"No comment text available for {post_id}")
+
+            files.setdefault(filename, set()).add(comment_id)
+            
+        # load the bodies needed
+        bodies = {}
+
+        for filename, comment_ids in files.items():
+            table = pq.read_table(
+                self.dataset_dir / filename,
+                columns=["comment_id", "post_id", "body"],
+                filters=[("comment_id", "in", list(comment_ids))],
+            )
+
+            for record in table.to_pylist():
+                key = (record["post_id"], record["comment_id"])
+                bodies[key] = record["body"]
+                
+        # enrich the data
+        # preserve the input order and duplicate requests
+        enriched = []
+        
+        for row in rows:
+            key = (row["post_id"], row["comment_id"])
+
+            if key not in bodies:
+                raise KeyError(f"Comment text not found: {key}")
+
+            enriched.append({**row, "body": bodies[key]})
+
+        return enriched
+
         
 if __name__ == "__main__":
+    """Example of how to use this class."""
     project_dir = Path(__file__).resolve().parents[1]
     
     print(project_dir)
@@ -96,3 +148,34 @@ if __name__ == "__main__":
 
     if comments:
         print(json.dumps(comments[0], indent=2, ensure_ascii=False))
+        
+    db = Database()
+
+    try:
+        result = db.execute(
+            """
+            SELECT comment_id, post_id, score, parent_comment_id
+            FROM cmv.comments
+            WHERE post_id = %s AND content_available = TRUE
+            ORDER BY created_utc, comment_id
+            LIMIT 5;
+            """,
+            ("t3_37i8f6",),
+        )
+
+        columns = (
+            "comment_id",
+            "post_id",
+            "score",
+            "parent_comment_id",
+        )
+        rows = [dict(zip(columns, row)) for row in result]
+
+        enriched = store.attach_comment_text(rows)
+
+        for row in enriched:
+            print(row["comment_id"], "score:", row["score"])
+            print((row["body"] or "")[:3])
+            print()
+    finally:
+        db.close()
