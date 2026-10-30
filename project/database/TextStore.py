@@ -49,6 +49,26 @@ class TextStore:
             )
             
         return table.to_pylist()[0]
+    
+    def get_comments(self, post_id):
+        location = self.index.get(post_id)
+        
+        if location is None:
+            raise KeyError(f"Unknown post ID: {post_id}")
+        
+        if location["comment_file"] is None:
+            return []
+        
+        table = pq.read_table(
+            self.dataset_dir / location["comment_file"],
+            columns=["comment_id", "post_id", "body"],
+            filters=[("post_id", "=", post_id)],
+        )
+        
+        if table.num_rows != location["comment_count"]:
+            raise ValueError(f"Comment count mismatch for {post_id}")
+
+        return table.to_pylist()
         
 if __name__ == "__main__":
     project_dir = Path(__file__).resolve().parents[1]
@@ -69,3 +89,10 @@ if __name__ == "__main__":
     print("Post:", post["post_id"])
     print("Title:", post["title"])
     print("Body preview:", (post["body"] or "")[:200])
+    
+    comments = store.get_comments("t3_37i8f6")
+
+    print("Comments:", len(comments))  # expect: 1367
+
+    if comments:
+        print(json.dumps(comments[0], indent=2, ensure_ascii=False))
