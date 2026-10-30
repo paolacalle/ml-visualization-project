@@ -21,9 +21,9 @@ class Database:
         )
         return connection
     
-    def execute(self, query, params=None, *, is_file=True):
-        if is_file:
-            sql_path = Path(__file__).resolve().parent / "queries" / query
+    def execute(self, query, params=None):
+        if query.strip().lower().endswith(".sql"):
+            sql_path = Path(__file__).resolve().parent / "queries" / query.strip()
             sql = sql_path.read_text(encoding="utf-8")
         else:
             sql = query
@@ -46,12 +46,11 @@ if __name__ == "__main__":
     try:
         print(db.execute("create_schema.sql"))
         
-        # print(db.execute("SELECT 1;", is_file=False))
+        # print(db.execute("SELECT 1;"))
         
         # print(db.execute(
         #     "SELECT * FROM cmv.posts WHERE post_id = %s;",
         #     ("t3_example",),
-        #     is_file=False,
         # ))
         
     finally:

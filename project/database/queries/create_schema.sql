@@ -15,13 +15,32 @@ CREATE TABLE posts (
     post_id TEXT PRIMARY KEY,
     original_split TEXT NOT NULL
         CHECK (original_split IN ('train', 'heldout')),
+
     title TEXT,
     body TEXT,
     author TEXT,
     created_utc DOUBLE PRECISION,
+
     content_available BOOLEAN NOT NULL DEFAULT FALSE,
     source_id BIGINT REFERENCES sources(source_id),
-    extra_json JSONB NOT NULL DEFAULT '{}'::jsonb
+
+    score INTEGER,
+    ups INTEGER,
+    downs INTEGER,
+    num_comments INTEGER,
+    gilded INTEGER,
+
+    permalink TEXT,
+    over_18 BOOLEAN,
+    archived BOOLEAN,
+    stickied BOOLEAN,
+    distinguished TEXT,
+
+    link_flair_text TEXT,
+    author_flair_text TEXT,
+
+    is_edited BOOLEAN,
+    edited_utc DOUBLE PRECISION
 );
 
 CREATE TABLE comments (
