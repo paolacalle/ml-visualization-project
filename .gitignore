@@ -1,5 +1,7 @@
 .DS_Store
 *project/data/raw/cmv.tar.bz2
+project/data/processed/cmv-text/
+project/data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
