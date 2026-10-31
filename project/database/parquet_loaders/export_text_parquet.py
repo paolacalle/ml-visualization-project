@@ -17,17 +17,18 @@ DEFAULT_OUTPUT = PROJECT_DIR / 'data/processed/cmv-text/v1'
 BUFFER_BYTES = 24 * 1024 * 1024
 MAX_FILE_BYTES = 50_000_000
 
+# only extracts texts
 POST_SCHEMA = pa.schema([
     pa.field('post_id', pa.string(), nullable=False),
     pa.field('title', pa.string()),
     pa.field('body', pa.string()),
 ])
+
 COMMENT_SCHEMA = pa.schema([
     pa.field('comment_id', pa.string(), nullable=False),
     pa.field('post_id', pa.string(), nullable=False),
     pa.field('body', pa.string()),
 ])
-
 
 def checksum(path):
     digest = hashlib.sha256()
@@ -36,12 +37,10 @@ def checksum(path):
             digest.update(block)
     return digest.hexdigest()
 
-
 def rows_checksum(rows, key):
     payload = json.dumps(sorted(rows, key=lambda row: row[key]),
                          ensure_ascii=False, sort_keys=True, separators=(',', ':'))
     return hashlib.sha256(payload.encode('utf-8')).hexdigest()
-
 
 class Shards:
     def __init__(self, root, kind, split, schema, files):
@@ -57,6 +56,7 @@ class Shards:
     def add(self, rows):
         if not rows:
             return None
+        
         table = pa.Table.from_pylist(rows, schema=self.schema)
 
         if self.buffers and self.nbytes + table.nbytes > BUFFER_BYTES:
@@ -71,10 +71,13 @@ class Shards:
     def flush(self):
         if not self.buffers:
             return
+        
         table = pa.concat_tables(self.buffers)
         sorting = [('post_id', 'ascending')]
+        
         if 'comment_id' in table.column_names:
             sorting.append(('comment_id', 'ascending'))
+            
         table = table.sort_by(sorting)
         relative = (self.folder / f'part-{self.part:04d}.parquet').as_posix()
         path = self.root / relative
@@ -82,8 +85,10 @@ class Shards:
                        row_group_size=4096, use_dictionary=['post_id'],
                        write_statistics=['post_id'])
         size = path.stat().st_size
+        
         if size > MAX_FILE_BYTES:
             raise ValueError(f'File exceeds upload limit: {relative} ({size} bytes)')
+        
         self.files.append({'path': relative, 'rows': table.num_rows,
                            'bytes': size, 'sha256': checksum(path)})
         self.part += 1
@@ -95,12 +100,15 @@ def export_text(archive_path, output, verify_post='t3_37i8f6'):
     archive_path = Path(archive_path).resolve()
     output = Path(output).resolve()
     partial = output.with_name(output.name + '.partial')
+    
     if not archive_path.is_file():
         raise FileNotFoundError(archive_path)
+    
     if output.exists() or partial.exists():
         raise FileExistsError(
             f'Refusing to overwrite {output} or {partial}; choose a new --output path.'
         )
+        
     partial.mkdir(parents=True)
     files, index, sources = [], {}, []
     expected_target = None

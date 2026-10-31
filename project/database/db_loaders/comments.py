@@ -5,6 +5,8 @@ from pathlib import Path
 
 
 def load_comments(archive_path, db, post_id):
+    
+    # get the source of this post
     sources = db.execute(
         """
         SELECT s.source_id, s.archive_member
@@ -20,6 +22,7 @@ def load_comments(archive_path, db, post_id):
 
     source_id, member_name = sources[0]
 
+    # load insert comment query
     sql_path = (
         Path(__file__).resolve().parents[1]
         / "queries"
@@ -32,12 +35,17 @@ def load_comments(archive_path, db, post_id):
             if not member.isfile() or member.name != member_name:
                 continue
 
+            # found the correct data source
             with archive.extractfile(member) as compressed:
                 with bz2.BZ2File(compressed, "rb") as lines:
+                    
+                    # iter each line
                     for line in lines:
+                        
                         if not line.strip():
                             continue
 
+                        # load line
                         post = json.loads(line)
 
                         if post["name"] != post_id:
