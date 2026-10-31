@@ -1,7 +1,7 @@
 # Export CMV text to Parquet
 
 Using the existing dataset? Follow the
-[one-time team download guide](project/database/TEAM_DATA.md) instead of rerunning
+[one-time team download guide](TEAM_DATA.md) instead of rerunning
 the exporter. It documents the exact private bucket/prefix, local layout, and
 complete release validation.
 
@@ -71,7 +71,7 @@ python -m unittest discover -s project/tests -v
 ```
 
 Use `TextStore.validate()` as shown in the
-[team download guide](project/database/TEAM_DATA.md#4-verify-the-complete-download-and-retrieve-the-sample)
+[team download guide](TEAM_DATA.md#4-verify-the-complete-download-and-retrieve-the-sample)
 to check all local Parquet checksums, sizes, schemas, row counts, and index
 references. These operations do not connect to PostgreSQL or cloud storage.
 See `project/tests/README.md` for the test command.
