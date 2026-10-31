@@ -49,16 +49,19 @@ class Shards:
         (self.root / self.folder).mkdir(parents=True)
         self.schema = schema
         self.files = files
-        self.buffers = []
+        self.buffers = [] # queue 
         self.nbytes = 0
         self.part = 0
 
     def add(self, rows):
         if not rows:
+            # no rows to add
             return None
         
+        # add the rows to the schema
         table = pa.Table.from_pylist(rows, schema=self.schema)
 
+        # flush the queue 
         if self.buffers and self.nbytes + table.nbytes > BUFFER_BYTES:
             self.flush()
             
@@ -81,16 +84,31 @@ class Shards:
         table = table.sort_by(sorting)
         relative = (self.folder / f'part-{self.part:04d}.parquet').as_posix()
         path = self.root / relative
-        pq.write_table(table, path, compression='zstd', compression_level=9,
-                       row_group_size=4096, use_dictionary=['post_id'],
-                       write_statistics=['post_id'])
+        
+        # write compressed data
+        pq.write_table(
+            table, path, 
+            compression='zstd', 
+            compression_level=9,
+            row_group_size=4096, 
+            use_dictionary=['post_id'],
+            write_statistics=['post_id']
+        )
+        
         size = path.stat().st_size
         
         if size > MAX_FILE_BYTES:
             raise ValueError(f'File exceeds upload limit: {relative} ({size} bytes)')
         
-        self.files.append({'path': relative, 'rows': table.num_rows,
-                           'bytes': size, 'sha256': checksum(path)})
+        self.files.append(
+            {
+                'path': relative, 
+                'rows': table.num_rows,
+                'bytes': size, 
+                'sha256': checksum(path)
+            }
+        )
+        
         self.part += 1
         self.buffers = []
         self.nbytes = 0
@@ -126,6 +144,7 @@ def export_text(archive_path, output, verify_post='t3_37i8f6'):
             if split not in ('train', 'heldout'):
                 raise ValueError(member.name)
             
+            # initialize the parsers / writers
             posts = Shards(partial, 'posts', split, POST_SCHEMA, files)
             comments = Shards(partial, 'comments', split, COMMENT_SCHEMA, files)
             post_count = comment_count = 0
@@ -133,6 +152,8 @@ def export_text(archive_path, output, verify_post='t3_37i8f6'):
             print(f'Exporting {member.name}', flush=True)
             
             with archive.extractfile(member) as compressed, bz2.BZ2File(compressed) as lines:
+                
+                # iterate each line
                 for line in lines:
                     if not line.strip():
                         continue
@@ -181,6 +202,7 @@ def export_text(archive_path, output, verify_post='t3_37i8f6'):
 
     if len(sources) != 2 or {s['split'] for s in sources} != {'train', 'heldout'}:
         raise ValueError('Expected both discussion sources')
+    
     if expected_target is None:
         raise ValueError('Retrieval-test discussion not found')
 
