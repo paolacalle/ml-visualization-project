@@ -8,6 +8,7 @@ def snapshot_sources(db, output_path):
         raise ValueError(f"Expected six sources, found {len(rows)}.")
 
 
+    # create a simple dict mapper
     source_map = {
         archive_member: {
             "source_id": source_id,
