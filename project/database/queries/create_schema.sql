@@ -17,7 +17,6 @@ CREATE TABLE posts (
         CHECK (original_split IN ('train', 'heldout')),
 
     title TEXT,
-    body TEXT,
     author TEXT,
     created_utc DOUBLE PRECISION,
 
@@ -49,12 +48,10 @@ CREATE TABLE comments (
     parent_comment_id TEXT,
     original_parent_id TEXT,
     author TEXT,
-    body TEXT,
     created_utc DOUBLE PRECISION,
     score INTEGER,
     content_available BOOLEAN NOT NULL DEFAULT FALSE,
     source_id BIGINT REFERENCES sources(source_id),
-    extra_json JSONB NOT NULL DEFAULT '{}'::jsonb,
 
     UNIQUE (comment_id, post_id),
 
@@ -72,7 +69,6 @@ CREATE TABLE op_labels (
     post_id TEXT PRIMARY KEY REFERENCES posts(post_id),
     delta_label BOOLEAN NOT NULL,
     source_id BIGINT NOT NULL REFERENCES sources(source_id),
-    extra_json JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
 CREATE TABLE pairs (
@@ -80,7 +76,6 @@ CREATE TABLE pairs (
     post_id TEXT NOT NULL REFERENCES posts(post_id),
     source_id BIGINT NOT NULL REFERENCES sources(source_id),
     source_line INTEGER NOT NULL CHECK (source_line > 0),
-    extra_json JSONB NOT NULL DEFAULT '{}'::jsonb,
 
     UNIQUE (source_id, source_line),
     UNIQUE (pair_id, post_id)
@@ -94,7 +89,6 @@ CREATE TABLE threads (
         CHECK (outcome IN ('positive', 'negative')),
     ancestor_id TEXT,
     author TEXT,
-    extra_json JSONB NOT NULL DEFAULT '{}'::jsonb,
 
     FOREIGN KEY (pair_id, post_id)
         REFERENCES pairs(pair_id, post_id),

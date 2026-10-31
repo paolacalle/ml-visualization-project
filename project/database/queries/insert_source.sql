@@ -4,5 +4,5 @@ INSERT INTO cmv.sources (
     original_split
 )
 VALUES (%s, %s, %s)
-ON CONFLICT (source_id) DO NOTHING
-RETURNING source_id;
+ON CONFLICT (archive_member) DO NOTHING
+RETURNING (source_id, archive_member);

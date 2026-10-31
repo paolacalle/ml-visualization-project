@@ -50,7 +50,6 @@ def load_posts(archive_path, db, limit_per_source=100):
                                 "post_id": post["name"],
                                 "original_split": split,
                                 "title": post.get("title"),
-                                "body": post.get("selftext"),
                                 "author": post.get("author"),
                                 "created_utc": post.get("created_utc"),
                                 "source_id": source_id,

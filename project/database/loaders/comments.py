@@ -72,7 +72,6 @@ def load_comments(archive_path, db, post_id):
                                 "parent_comment_id": parent_comment_id,
                                 "original_parent_id": parent,
                                 "author": comment.get("author"),
-                                "body": comment.get("body"),
                                 "created_utc": comment.get("created_utc"),
                                 "score": comment.get("score"),
                                 "source_id": source_id,
