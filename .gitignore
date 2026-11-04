@@ -1,3 +1,9 @@
+.DS_Store
+*project/data/raw/cmv.tar.bz2
+project/data/processed/cmv-text/
+project/data/
+project-plans/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -218,3 +224,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Generated CMV databases and interrupted imports
+*.sqlite3
+*.sqlite3.partial
+*.sqlite3.partial-journal
