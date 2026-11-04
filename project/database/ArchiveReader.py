@@ -11,6 +11,7 @@ class ArchiveReader():
         self.source_map = source_map
         
     def iter_records(self, task=None):
+        """Iterator it opens the bz2 zipped file user want to iterate."""
         with tarfile.open(self.archive_path, "r|bz2") as archive:
             for member in archive:
                 
@@ -46,5 +47,6 @@ class ArchiveReader():
                                     "expected a JSON object"
                                 )
 
-                            # yield specific record
+                            # yield information so controller can use 
+                            # this data right away
                             yield member.name, line_number, record
