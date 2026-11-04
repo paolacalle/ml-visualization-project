@@ -7,7 +7,7 @@ class ArchiveReader():
     """Stream JSON records from the CMV archive"""
     
     def __init__(self, archive_path, source_map):
-        self.archive_map
+        self.archive_path = archive_path
         self.source_map = source_map
         
     def iter_records(self, task=None):
@@ -46,4 +46,5 @@ class ArchiveReader():
                                     "expected a JSON object"
                                 )
 
+                            # yield specific record
                             yield member.name, line_number, record

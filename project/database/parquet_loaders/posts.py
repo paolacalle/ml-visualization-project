@@ -19,6 +19,10 @@ POST_FIELDS = (
 )
 
 def map_post(record, source):
+    """
+    Method parses the json into the fields we 
+    want to retain within our parquet files and tables.
+    """
     if source["task"] != "all":
         raise ValueError("map_post expects 'all' source.")
     

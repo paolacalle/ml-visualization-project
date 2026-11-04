@@ -1,7 +1,14 @@
 import json 
 from pathlib import Path 
+import os
 
 def snapshot_sources(db, output_path):
+    output_path = Path(output_path)
+    
+    if output_path.exists:
+        with output_path.open("r", encoding="utf-8") as file:
+            return json.load(file)
+        
     rows = db.execute("select_sources.sql")
     
     if len(rows) != 6:
@@ -18,7 +25,6 @@ def snapshot_sources(db, output_path):
         for source_id, archive_member, task, split in rows
     }
     
-    output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
     # prevent overwrite
