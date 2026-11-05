@@ -1,3 +1,30 @@
+import pyarrow as pa
+
+
+POST_SCHEMA = pa.schema([
+    pa.field("post_id", pa.string(), nullable=False),
+    pa.field("original_split", pa.string(), nullable=False),
+    pa.field("title", pa.string()),
+    pa.field("author", pa.string()),
+    pa.field("created_utc", pa.float64()),
+    pa.field("content_available", pa.bool_(), nullable=False),
+    pa.field("source_id", pa.int64()),
+    pa.field("score", pa.int32()),
+    pa.field("ups", pa.int32()),
+    pa.field("downs", pa.int32()),
+    pa.field("num_comments", pa.int32()),
+    pa.field("gilded", pa.int32()),
+    pa.field("permalink", pa.string()),
+    pa.field("over_18", pa.bool_()),
+    pa.field("archived", pa.bool_()),
+    pa.field("stickied", pa.bool_()),
+    pa.field("distinguished", pa.string()),
+    pa.field("link_flair_text", pa.string()),
+    pa.field("author_flair_text", pa.string()),
+    pa.field("is_edited", pa.bool_()),
+    pa.field("edited_utc", pa.float64()),
+])
+
 
 # fields to extract form the raw fields
 POST_FIELDS = (
@@ -28,7 +55,7 @@ def map_post(record, source):
     
     post_id = record["name"]
     
-    if not isinstance(post_id, str) and not post_id.startswith("t3_"):
+    if not isinstance(post_id, str) or not post_id.startswith("t3_"):
         raise ValueError(f"Invalid post ID: {post_id}")
     
     edited = record.get("edited")

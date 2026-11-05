@@ -5,7 +5,7 @@ import os
 def snapshot_sources(db, output_path):
     output_path = Path(output_path)
     
-    if output_path.exists:
+    if output_path.exists():
         with output_path.open("r", encoding="utf-8") as file:
             return json.load(file)
         
