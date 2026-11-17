@@ -1,5 +1,16 @@
 # Database data tests
 
+The optional mapping-worker path is tested with:
+
+```bash
+python -m unittest discover -s project/tests -p 'test_metadata_multiprocessing.py' -v
+```
+
+These tests run the runner contract with two spawned processes, compare all seven
+tables against sequential output, check bounded submission and successful-prefix
+preservation after read-ahead errors, and cover CLI Parquet export. SQLite writes
+are checked in the parent process. All archives and output files are temporary.
+
 From the repository root, activate your environment and install dependencies:
 
 ```bash

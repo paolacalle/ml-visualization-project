@@ -53,6 +53,29 @@ class CommentStagingTests(unittest.TestCase):
         self.add([row])
         self.assertEqual(self.rows(), [row])
 
+    def test_repeated_references_and_placeholder_enrichment_never_update_identity_keys(self):
+        self.stage.connection.executescript("""
+            CREATE TEMP TRIGGER reject_post_key_update BEFORE UPDATE ON post_splits
+            BEGIN SELECT RAISE(ABORT, 'Post identities must not be updated'); END;
+            CREATE TEMP TRIGGER reject_comment_key_update BEFORE UPDATE ON comment_keys
+            BEGIN SELECT RAISE(ABORT, 'Comment identities must not be updated'); END;
+        """)
+        child = comment(parent_comment_id="t1_parent", original_parent_id="t1_parent")
+        parent = comment("t1_parent", author="writer")
+        self.add([child, child])
+        self.add([parent, child])
+        self.assertEqual(self.stage.get_comment("t1_parent"), parent)
+        self.assertEqual(self.stage.get_comment("t1_child"), child)
+
+    def test_parent_reference_lookup_uses_an_index_instead_of_scanning_candidates(self):
+        plan = self.stage.connection.execute(
+            "EXPLAIN QUERY PLAN SELECT rowid FROM candidates WHERE parent_comment_id = ? AND post_id = ?",
+            ("t1_parent", "t3_example"),
+        ).fetchall()
+        description = " ".join(row[3] for row in plan)
+        self.assertIn("SEARCH", description)
+        self.assertIn("candidates_parent_idx", description)
+
     def test_full_metadata_wins_and_fallback_fills_nulls_in_either_order(self):
         full = comment(author=None, score=0, created_utc=1441131871.5)
         fallback = comment(author="Café 🌱", score=42, created_utc=None, source_id=5)

@@ -97,6 +97,15 @@ class SourceMappingTests(unittest.TestCase):
 
 
 class MetadataStagingTests(unittest.TestCase):
+    def test_membership_comment_reference_lookup_uses_an_index(self):
+        plan = self.stage.connection.execute(
+            "EXPLAIN QUERY PLAN SELECT rowid FROM thread_comments WHERE comment_id = ? AND post_id = ?",
+            ("t1_root", POST_ID),
+        ).fetchall()
+        description = " ".join(row[3] for row in plan)
+        self.assertIn("SEARCH", description)
+        self.assertIn("thread_comments_comment_idx", description)
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
