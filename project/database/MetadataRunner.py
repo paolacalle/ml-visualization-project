@@ -1,13 +1,16 @@
-"""Prepare and validate metadata staging in one sequential archive pass."""
+"""Prepare metadata in one archive pass, optionally mapping with worker processes."""
 
 import argparse
 import copy
 import json
+import multiprocessing
 import sqlite3
+import sys
+from collections import deque
+from concurrent.futures import ProcessPoolExecutor
 from contextlib import closing
 from itertools import islice
 from pathlib import Path
-from collections import defaultdict
 
 import pyarrow as pa
 
@@ -21,21 +24,57 @@ from parquet_loaders.posts import map_post, map_task_post
 from parquet_loaders.source_map import map_sources
 
 
+def _discussion_comments(record, source):
+    comments = record.get("comments", [])
+    if not isinstance(comments, list):
+        raise ValueError("Expected a flat comments list in an all/ record.")
+    for position, comment in enumerate(comments):
+        if not isinstance(comment, dict):
+            raise ValueError(f"Comment position {position}: expected a comment object.")
+        try:
+            yield map_comment(comment, record["name"], source)
+        except (ValueError, TypeError, KeyError) as exc:
+            raise ValueError(f"Comment position {position}: {exc}") from exc
+
+
+def prepare_record(job):
+    """Map ordinary data in a worker; never receive an open reader or database."""
+    member, line, record, source = job
+    try:
+        task = source["task"]
+        if task == "all":
+            post = map_post(record, source)
+            data = {"comments": list(_discussion_comments(record, source))}
+        elif task == "op_task":
+            post = map_task_post(record, source)
+            data = {"label": map_op_label(record, source)}
+        else:
+            post = map_task_post(record, source)
+            data = map_pair(record, source, member, line)
+        return member, line, source, post, data
+    except (ValueError, TypeError, KeyError, pa.ArrowException) as exc:
+        raise ValueError(f"{member}, line {line}: {exc}") from exc
+
+
 class MetadataRunner:
     """Read all six sources once, stage mapped rows, and validate relationships.
 
     source_map accepts a snapshot dictionary or its JSON file path. Each raw
-    record is atomic, while mapped discussion comments are passed to staging in
-    bounded batches. Earlier successful records remain in the SQLite file if a
-    later record fails. Existing staging files are never overwritten or resumed.
+    record is atomic. Optional workers map records, while the main process alone
+    writes SQLite in archive order. Earlier successful records remain in the
+    SQLite file if a later record fails. Existing staging files are never
+    overwritten or resumed.
     An optional output_path publishes a verified local Parquet release after
     staging. Neither mode uploads data or connects to a cloud database.
     """
 
     def __init__(self, archive_path, source_map, staging_path, *, batch_size=1000,
-                 output_path=None, rows_per_file=50000):
+                 output_path=None, rows_per_file=50000, workers=1):
         if type(batch_size) is not int or batch_size <= 0:
             raise ValueError("batch_size must be a positive integer.")
+        if type(workers) is not int or workers <= 0:
+            raise ValueError("workers must be a positive integer.")
+        self.workers = workers
         if isinstance(source_map, dict):
             snapshot = copy.deepcopy(source_map)
         else:
@@ -50,39 +89,56 @@ class MetadataRunner:
         self.output_path = None if output_path is None else Path(output_path).resolve()
         self.rows_per_file = rows_per_file
 
-    def _discussion_comments(self, record, source):
-        comments = record.get("comments", [])
-        if not isinstance(comments, list):
-            raise ValueError("Expected a flat comments list in an all/ record.")
-        for position, comment in enumerate(comments):
-            if not isinstance(comment, dict):
-                raise ValueError(f"Comment position {position}: expected a comment object.")
-            try:
-                yield map_comment(comment, record["name"], source)
-            except (ValueError, TypeError, KeyError) as exc:
-                raise ValueError(f"Comment position {position}: {exc}") from exc
-
-    def _stage_record(self, stage, member, line, record, source):
+    def _write_prepared(self, stage, prepared):
+        member, line, source, post, data = prepared
         task = source["task"]
         # Nested staging calls use savepoints; nothing from a failed raw record
         # survives, including a task's original-post fallback metadata.
         with stage.transaction():
+            stage.add_posts([post], task=task)
             if task == "all":
-                stage.add_posts([map_post(record, source)])
-                comments = self._discussion_comments(record, source)
-                with closing(comments):
-                    while batch := list(islice(comments, self.batch_size)):
-                        stage.add_comments(batch, task=task, split=source["original_split"])
-                return len(record.get("comments", []))
+                comments = iter(data["comments"])
+                while batch := list(islice(comments, self.batch_size)):
+                    stage.add_comments(batch, task=task, split=source["original_split"])
+            elif task == "op_task":
+                stage.add_op_labels([data["label"]])
+            else:
+                stage.add_pair(data)
+        return len(data.get("comments", []))
 
-            stage.add_posts([map_task_post(record, source)], task=task)
-            if task == "op_task":
-                stage.add_op_labels([map_op_label(record, source)])
-                return 0
+    def _prepared_records(self, records, source_map):
+        if self.workers == 1:
+            for member, line, record in records:
+                yield prepare_record((member, line, record, source_map[member]))
+            return
 
-            mapped = map_pair(record, source, member, line)
-            stage.add_pair(mapped)
-            return len(mapped["comments"])
+        # Spawn keeps the already-open SQLite connection out of child processes.
+        with ProcessPoolExecutor(max_workers=self.workers,
+                                 mp_context=multiprocessing.get_context("spawn")) as pool:
+            pending = deque()
+            exhausted, reader_error = False, None
+            try:
+                while pending or not exhausted:
+                    while not exhausted and len(pending) < self.workers * 2:
+                        try:
+                            member, line, record = next(records)
+                        except StopIteration:
+                            exhausted = True
+                        except Exception as exc:
+                            # Commit the successful prefix before surfacing a
+                            # read-ahead error, just as sequential ingestion does.
+                            exhausted, reader_error = True, exc
+                        else:
+                            pending.append(pool.submit(
+                                prepare_record, (member, line, record, source_map[member])
+                            ))
+                    if pending:
+                        yield pending.popleft().result()
+                if reader_error is not None:
+                    raise reader_error
+            finally:
+                for future in pending:
+                    future.cancel()
 
     def run(self):
         """Return input counts and validation totals after a successful run."""
@@ -105,11 +161,13 @@ class MetadataRunner:
         
         with MetadataStaging(self.staging_path, source_map) as stage:
 
-            with closing(reader.iter_records()) as records:
-                
-                for member, line, record in records:
+            with closing(reader.iter_records()) as records, closing(
+                self._prepared_records(records, source_map)
+            ) as prepared_records:
+                for prepared in prepared_records:
+                    member, line = prepared[:2]
                     try:
-                        comments = self._stage_record(stage, member, line, record, source_map[member])
+                        comments = self._write_prepared(stage, prepared)
                     except (ValueError, TypeError, KeyError, sqlite3.Error, pa.ArrowException) as exc:
                         raise ValueError(f"{member}, line {line}: {exc}") from exc
                     counts[member]["records"] += 1
@@ -121,7 +179,8 @@ class MetadataRunner:
                         progress[member]["line"] += 1
                         progress[member]["c"] += comments
                         
-                        if progress[member]["line"] % 1000 == 0: print(progress)
+                        if progress[member]["line"] % 1000 == 0:
+                            print(progress, file=sys.stderr)
                     
                     
             missing = set(source_map) - reader.seen_members
@@ -152,12 +211,14 @@ def main():
     parser.add_argument("--staging", type=Path, required=True,
                         help="New SQLite file; an existing path is refused.")
     parser.add_argument("--batch-size", type=int, default=1000)
+    parser.add_argument("--workers", type=int, default=1,
+                        help="Mapping processes; 1 runs sequentially. SQLite writes stay in the parent.")
     parser.add_argument("--output", type=Path,
                         help="Optional new directory for a verified Parquet release.")
     parser.add_argument("--rows-per-file", type=int, default=50000)
     args = parser.parse_args()
     runner = MetadataRunner(args.archive, args.source_map, args.staging, batch_size=args.batch_size,
-                            output_path=args.output, rows_per_file=args.rows_per_file)
+                            output_path=args.output, rows_per_file=args.rows_per_file, workers=args.workers)
     print(json.dumps(runner.run(), indent=2))
 
 
