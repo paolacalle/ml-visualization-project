@@ -52,6 +52,24 @@ def map_post(record, source):
     """
     if source["task"] != "all":
         raise ValueError("map_post expects 'all' source.")
+
+    return _map_post(record, source)
+
+
+def map_task_post(record, source):
+    """Map original-post metadata supplied by an OP or pair task as fallback."""
+    if source["task"] == "op_task":
+        return _map_post(record, source)
+    if source["task"] == "pair_task":
+        return _map_post({
+            "name": record.get("op_name"),
+            "title": record.get("op_title"),
+            "author": record.get("op_author"),
+        }, source)
+    raise ValueError("map_task_post expects 'op_task' or 'pair_task' source.")
+
+
+def _map_post(record, source):
     
     post_id = record["name"]
     

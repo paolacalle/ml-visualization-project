@@ -1,0 +1,165 @@
+"""Prepare and validate metadata staging in one sequential archive pass."""
+
+import argparse
+import copy
+import json
+import sqlite3
+from contextlib import closing
+from itertools import islice
+from pathlib import Path
+from collections import defaultdict
+
+import pyarrow as pa
+
+from ArchiveReader import ArchiveReader
+from parquet_loaders.comments import map_comment
+from parquet_loaders.metadata_staging import MetadataStaging
+from parquet_loaders.metadata_parquet import MetadataParquetWriter
+from parquet_loaders.op_labels import map_op_label
+from parquet_loaders.pairs import map_pair
+from parquet_loaders.posts import map_post, map_task_post
+from parquet_loaders.source_map import map_sources
+
+
+class MetadataRunner:
+    """Read all six sources once, stage mapped rows, and validate relationships.
+
+    source_map accepts a snapshot dictionary or its JSON file path. Each raw
+    record is atomic, while mapped discussion comments are passed to staging in
+    bounded batches. Earlier successful records remain in the SQLite file if a
+    later record fails. Existing staging files are never overwritten or resumed.
+    An optional output_path publishes a verified local Parquet release after
+    staging. Neither mode uploads data or connects to a cloud database.
+    """
+
+    def __init__(self, archive_path, source_map, staging_path, *, batch_size=1000,
+                 output_path=None, rows_per_file=50000):
+        if type(batch_size) is not int or batch_size <= 0:
+            raise ValueError("batch_size must be a positive integer.")
+        if isinstance(source_map, dict):
+            snapshot = copy.deepcopy(source_map)
+        else:
+            snapshot = json.loads(Path(source_map).read_text(encoding="utf-8"))
+        map_sources(snapshot)
+        self.archive_path = Path(archive_path).resolve()
+        self.staging_path = Path(staging_path).resolve()
+        self.source_map = snapshot
+        self.batch_size = batch_size
+        if type(rows_per_file) is not int or rows_per_file <= 0:
+            raise ValueError("rows_per_file must be a positive integer.")
+        self.output_path = None if output_path is None else Path(output_path).resolve()
+        self.rows_per_file = rows_per_file
+
+    def _discussion_comments(self, record, source):
+        comments = record.get("comments", [])
+        if not isinstance(comments, list):
+            raise ValueError("Expected a flat comments list in an all/ record.")
+        for position, comment in enumerate(comments):
+            if not isinstance(comment, dict):
+                raise ValueError(f"Comment position {position}: expected a comment object.")
+            try:
+                yield map_comment(comment, record["name"], source)
+            except (ValueError, TypeError, KeyError) as exc:
+                raise ValueError(f"Comment position {position}: {exc}") from exc
+
+    def _stage_record(self, stage, member, line, record, source):
+        task = source["task"]
+        # Nested staging calls use savepoints; nothing from a failed raw record
+        # survives, including a task's original-post fallback metadata.
+        with stage.transaction():
+            if task == "all":
+                stage.add_posts([map_post(record, source)])
+                comments = self._discussion_comments(record, source)
+                with closing(comments):
+                    while batch := list(islice(comments, self.batch_size)):
+                        stage.add_comments(batch, task=task, split=source["original_split"])
+                return len(record.get("comments", []))
+
+            stage.add_posts([map_task_post(record, source)], task=task)
+            if task == "op_task":
+                stage.add_op_labels([map_op_label(record, source)])
+                return 0
+
+            mapped = map_pair(record, source, member, line)
+            stage.add_pair(mapped)
+            return len(mapped["comments"])
+
+    def run(self):
+        """Return input counts and validation totals after a successful run."""
+        if not self.archive_path.is_file():
+            raise FileNotFoundError(self.archive_path)
+        # Take another private copy so caller edits cannot change a running pass.
+        source_map = copy.deepcopy(self.source_map)
+        map_sources(source_map)
+        writer = None
+        if self.output_path is not None:
+            writer = MetadataParquetWriter(self.output_path, batch_size=self.batch_size,
+                                           rows_per_file=self.rows_per_file)
+            writer.check_destination()
+            
+        self.staging_path.parent.mkdir(parents=True, exist_ok=True)
+        counts = {member: {"records": 0, "comments": 0} for member in source_map}
+        reader = ArchiveReader(self.archive_path, source_map)
+        
+        progress = {}
+        
+        with MetadataStaging(self.staging_path, source_map) as stage:
+
+            with closing(reader.iter_records()) as records:
+                
+                for member, line, record in records:
+                    try:
+                        comments = self._stage_record(stage, member, line, record, source_map[member])
+                    except (ValueError, TypeError, KeyError, sqlite3.Error, pa.ArrowException) as exc:
+                        raise ValueError(f"{member}, line {line}: {exc}") from exc
+                    counts[member]["records"] += 1
+                    counts[member]["comments"] += comments
+                    
+                    if not progress.get(member):
+                        progress[member] = {"line" : 1, "c" : comments}
+                    else: 
+                        progress[member]["line"] += 1
+                        progress[member]["c"] += comments
+                        
+                        if progress[member]["line"] % 1000 == 0: print(progress)
+                    
+                    
+            missing = set(source_map) - reader.seen_members
+            if missing:
+                raise ValueError(f"Missing archive sources: {', '.join(sorted(missing))}")
+            export = None
+            if writer is None:
+                validation = stage.validate()
+            else:
+                export = writer.write(stage, archive_path=self.archive_path, input_by_source=counts)
+                validation = export["validation"]
+
+        report = {
+            "status": "validated_staging" if export is None else "exported_metadata",
+            "staging_path": str(self.staging_path),
+            "input_by_source": counts,
+            "validation": validation,
+        }
+        if export is not None:
+            report["export"] = export
+        return report
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--archive", type=Path, required=True)
+    parser.add_argument("--source-map", type=Path, required=True)
+    parser.add_argument("--staging", type=Path, required=True,
+                        help="New SQLite file; an existing path is refused.")
+    parser.add_argument("--batch-size", type=int, default=1000)
+    parser.add_argument("--output", type=Path,
+                        help="Optional new directory for a verified Parquet release.")
+    parser.add_argument("--rows-per-file", type=int, default=50000)
+    args = parser.parse_args()
+    runner = MetadataRunner(args.archive, args.source_map, args.staging, batch_size=args.batch_size,
+                            output_path=args.output, rows_per_file=args.rows_per_file)
+    print(json.dumps(runner.run(), indent=2))
+
+
+if __name__ == "__main__":
+    main()

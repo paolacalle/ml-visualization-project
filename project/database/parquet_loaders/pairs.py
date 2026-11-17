@@ -2,6 +2,8 @@
 
 import pyarrow as pa
 
+from parquet_loaders.comments import map_pair_comment
+
 
 PAIR_SCHEMA = pa.schema([
     pa.field("pair_id", pa.string(), nullable=False),
@@ -28,10 +30,11 @@ THREAD_COMMENT_SCHEMA = pa.schema([
 
 
 def map_pair(record, source, member_name, line_number):
-    """Return pair, threads, and thread_comments; reconcile comment rows later.
+    """Return pair, threads, thread_comments, and comment metadata candidates.
 
     IDs use the archive member and actual one-based JSON line number, independent
     of database-generated source IDs. Membership positions remain zero-based.
+    Comments shared across threads remain separate candidates until staging.
     """
     def invalid(message):
         raise ValueError(f"{member_name}, line {line_number}: {message}")
@@ -66,6 +69,7 @@ def map_pair(record, source, member_name, line_number):
     }
     threads = []
     memberships = []
+    comment_rows = []
 
     for outcome in ("positive", "negative"):
         thread = record.get(outcome)
@@ -90,25 +94,15 @@ def map_pair(record, source, member_name, line_number):
         for position, comment in enumerate(comments):
             if not isinstance(comment, dict):
                 invalid(f"{outcome}, position {position}: expected a comment object.")
-            comment_id = comment.get("name")
-            if not comment_id:
-                raw_id = comment.get("id")
-                if not isinstance(raw_id, str) or not raw_id:
-                    invalid(f"{outcome}, position {position}: missing comment ID.")
-                comment_id = f"t1_{raw_id}"
-            if (
-                not isinstance(comment_id, str)
-                or not comment_id.startswith("t1_")
-                or len(comment_id) <= 3
-            ):
-                invalid(f"{outcome}, position {position}: invalid comment ID {comment_id}")
-
-            link_id = comment.get("link_id")
-            if link_id is not None and link_id != post_id:
-                invalid(f"{comment_id} belongs to {link_id}, not {post_id}")
+            try:
+                mapped_comment = map_pair_comment(comment, post_id, source)
+            except ValueError as exc:
+                invalid(f"{outcome}, position {position}: {exc}")
+            comment_id = mapped_comment["comment_id"]
             if comment_id in seen:
                 invalid(f"{outcome}: duplicate comment ID {comment_id}")
             seen.add(comment_id)
+            comment_rows.append(mapped_comment)
 
             memberships.append({
                 "thread_id": thread_id,
@@ -117,4 +111,9 @@ def map_pair(record, source, member_name, line_number):
                 "position": position,
             })
 
-    return {"pair": pair, "threads": threads, "thread_comments": memberships}
+    return {
+        "pair": pair,
+        "threads": threads,
+        "thread_comments": memberships,
+        "comments": comment_rows,
+    }

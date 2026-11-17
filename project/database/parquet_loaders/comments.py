@@ -18,6 +18,19 @@ def map_comment(comment, post_id, source):
     if source["task"] != "all":
         raise ValueError("map_comment expects 'all' source.")
 
+    return _map_comment(comment, post_id, source)
+
+
+def map_pair_comment(comment, post_id, source):
+    """Map pair-task metadata; an absent parent remains unknown."""
+    if source["task"] != "pair_task":
+        raise ValueError("map_pair_comment expects 'pair_task' source.")
+
+    return _map_comment(comment, post_id, source, allow_unknown_parent=True)
+
+
+def _map_comment(comment, post_id, source, *, allow_unknown_parent=False):
+
     if not isinstance(post_id, str) or not post_id.startswith("t3_"):
         raise ValueError(f"Invalid post ID: {post_id}")
 
@@ -45,7 +58,9 @@ def map_comment(comment, post_id, source):
 
     parent = comment.get("parent_id")
 
-    if parent == post_id:
+    if parent is None and allow_unknown_parent:
+        parent_comment_id = None
+    elif parent == post_id:
         parent_comment_id = None
     elif isinstance(parent, str) and parent.startswith("t1_") and len(parent) > 3:
         parent_comment_id = parent
