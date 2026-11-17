@@ -94,6 +94,7 @@ class MetadataStaging(CommentStaging):
                 CHECK (position >= 0),
                 FOREIGN KEY (thread_id, post_id) REFERENCES threads(thread_id, post_id),
                 FOREIGN KEY (comment_id, post_id) REFERENCES comment_keys(comment_id, post_id));
+            CREATE INDEX thread_comments_comment_idx ON thread_comments(comment_id, post_id);
         """)
 
         expressions = []

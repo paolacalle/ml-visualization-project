@@ -12,6 +12,7 @@ python project/database/MetadataRunner.py \
   --source-map project/data/processed/cmv-metadata/source_map.json \
   --staging project/data/processed/cmv-metadata/staging/run-001.sqlite \
   --output project/data/processed/cmv-metadata/v1 \
+  --workers 2 \
   --rows-per-file 50000 \
   --batch-size 1000
 ```
@@ -25,20 +26,32 @@ To use the class from another script under `project/database`:
 ```python
 from MetadataRunner import MetadataRunner
 
-runner = MetadataRunner(
-    archive_path="project/data/raw/cmv.tar.bz2",
-    source_map="project/data/processed/cmv-metadata/source_map.json",
-    staging_path="project/data/processed/cmv-metadata/staging/run-001.sqlite",
-    output_path="project/data/processed/cmv-metadata/v1",
-    batch_size=1000,
-)
-report = runner.run()
-print(report["validation"])
+def main():
+    runner = MetadataRunner(
+        archive_path="project/data/raw/cmv.tar.bz2",
+        source_map="project/data/processed/cmv-metadata/source_map.json",
+        staging_path="project/data/processed/cmv-metadata/staging/run-001.sqlite",
+        output_path="project/data/processed/cmv-metadata/v1",
+        batch_size=1000,
+        workers=2,
+    )
+    report = runner.run()
+    print(report["validation"])
+
+if __name__ == "__main__":
+    main()
 ```
 
 Both examples assume the current working directory is the repository root.
 `source_map` also accepts a snapshot dictionary. Actual database source IDs are
 preserved; archive order never assigns them.
+
+`workers=1` is the default and runs mapping in the main process. `--workers 2`
+starts two mapping processes using `spawn`; retain the main guard above when
+calling it from a script. Decompression and JSON parsing stay in `ArchiveReader`.
+Workers receive ordinary record data, map metadata, and return results; SQLite
+connections and archive handles remain in the parent process. Up to twice the
+worker count is submitted at once, and results are written in archive order.
 
 ## Processing and result
 
@@ -61,9 +74,12 @@ pair-task occurrences can repeat comments. Validation counts describe canonical
 table rows and separately report post/comment placeholders. Reported Reddit
 `num_comments` values do not determine how many comment rows are ingested.
 
-The archive reader holds one decoded JSON record at a time. `batch_size` bounds
-additional mapped comment batches for full discussions; a pair is mapped as one
-unit. Each raw record is atomic, including any task-post fallback metadata.
+Each mapping job holds one discussion and its mapped metadata. The bounded worker
+queue limits the number of discussions in flight; it does not impose a byte
+limit on an individual discussion. `batch_size` controls comment batches passed
+to SQLite and is independent of the worker count. Each raw record remains atomic,
+including any task-post fallback metadata. Queued jobs are cancelled where possible
+on failure, and the worker pool is shut down before staging closes.
 During export, memory is bounded by one `rows_per_file` shard plus an incoming
 batch and the discussion index. The six sources remain in one global file.
 
@@ -137,6 +153,7 @@ validated in staging before export.
 ```bash
 python -m unittest discover -s project/tests -p 'test_metadata_runner.py' -v
 python -m unittest discover -s project/tests -p 'test_metadata_parquet.py' -v
+python -m unittest discover -s project/tests -p 'test_metadata_multiprocessing.py' -v
 ```
 
 These tests build tiny archives locally. They do not process the full dataset or

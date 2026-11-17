@@ -10,6 +10,7 @@ from parquet_loaders.comments import COMMENT_SCHEMA
 COMMENT_COLUMNS = tuple(COMMENT_SCHEMA.names)
 SELECT_COLUMNS = ", ".join(COMMENT_COLUMNS)
 
+# add index to speed up lookup
 
 class CommentStaging:
     """Merge comment candidates without retaining the dataset in Python memory.
@@ -60,6 +61,7 @@ class CommentStaging:
                 FOREIGN KEY (parent_comment_id, post_id)
                     REFERENCES comment_keys(comment_id, post_id)
             );
+            CREATE INDEX candidates_parent_idx ON candidates(parent_comment_id, post_id);
             CREATE VIEW reconciled_comments AS
             SELECT k.comment_id, k.post_id, k.original_split,
                 CASE WHEN a.original_parent_id IS NOT NULL
@@ -96,25 +98,30 @@ class CommentStaging:
             raise ValueError(f"Invalid post ID: {post_id}")
         if split not in ("train", "heldout"):
             raise ValueError(f"Invalid original split: {split}")
-        cursor = self.connection.execute("""
-            INSERT INTO post_splits VALUES (?, ?)
-            ON CONFLICT (post_id) DO UPDATE SET post_id = excluded.post_id
-            WHERE post_splits.original_split = excluded.original_split
-        """, (post_id, split))
-        if cursor.rowcount != 1:
-            raise ValueError(f"Conflicting original split for {post_id}")
+        existing = self.connection.execute(
+            "SELECT original_split FROM post_splits WHERE post_id = ?", (post_id,)
+        ).fetchone()
+        if existing is not None:
+            if existing["original_split"] != split:
+                raise ValueError(f"Conflicting original split for {post_id}")
+            return
+        self.connection.execute("INSERT INTO post_splits VALUES (?, ?)", (post_id, split))
 
     def _ensure_key(self, comment_id, post_id, split):
         if not isinstance(comment_id, str) or not comment_id.startswith("t1_") or len(comment_id) <= 3:
             raise ValueError(f"Invalid comment ID: {comment_id}")
         self._ensure_post(post_id, split)
-        cursor = self.connection.execute("""
-            INSERT INTO comment_keys VALUES (?, ?, ?)
-            ON CONFLICT (comment_id) DO UPDATE SET comment_id = excluded.comment_id
-            WHERE comment_keys.post_id = excluded.post_id
-        """, (comment_id, post_id, split))
-        if cursor.rowcount != 1:
-            raise ValueError(f"{comment_id} belongs to another post")
+        # Keys are immutable. A no-op UPDATE still makes SQLite check incoming
+        # foreign-key references; use an indexed read for an existing identity.
+        existing = self.connection.execute(
+            "SELECT post_id FROM comment_keys WHERE comment_id = ?", (comment_id,)
+        ).fetchone()
+        if existing is not None:
+            if existing["post_id"] != post_id:
+                raise ValueError(f"{comment_id} belongs to another post")
+            return
+        self.connection.execute("INSERT INTO comment_keys VALUES (?, ?, ?)",
+                                (comment_id, post_id, split))
 
     def add_comments(self, rows, *, task, split):
         """Atomically merge a batch of mapped rows from all/ or pair_task/."""
