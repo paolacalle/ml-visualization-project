@@ -68,7 +68,7 @@ CREATE TABLE comments (
 CREATE TABLE op_labels (
     post_id TEXT PRIMARY KEY REFERENCES posts(post_id),
     delta_label BOOLEAN NOT NULL,
-    source_id BIGINT NOT NULL REFERENCES sources(source_id),
+    source_id BIGINT NOT NULL REFERENCES sources(source_id)
 );
 
 CREATE TABLE pairs (

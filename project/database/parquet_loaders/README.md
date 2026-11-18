@@ -19,7 +19,8 @@ python project/database/MetadataRunner.py \
 
 The staging path, output directory, and output's `.partial` directory must be
 new. Parent directories are created if needed. Omit `--output` to prepare and
-validate SQLite staging only. Database loading remains a separate step.
+validate SQLite staging only. Database loading is a separate step through
+[ParquetDatabaseLoader](../db_loaders/README.md).
 
 To use the class from another script under `project/database`:
 

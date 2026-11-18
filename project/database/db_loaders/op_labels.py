@@ -2,6 +2,12 @@ import bz2
 import json
 import tarfile
 
+from db_loaders._bulk import TableLoader
+
+
+class OpLabelsLoader(TableLoader):
+    table = "op_labels"
+
 
 def load_op_label(archive_path, db, post_id):
     sources = db.execute(

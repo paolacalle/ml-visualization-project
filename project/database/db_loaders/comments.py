@@ -2,6 +2,31 @@ import bz2
 import json
 import tarfile
 from pathlib import Path
+from psycopg import sql
+
+from db_loaders._bulk import TableLoader
+
+
+class CommentsLoader(TableLoader):
+    """Stage every selected shard before merging, preserving cross-shard parents."""
+
+    table = "comments"
+    immutable = ("post_id",)
+    protect_available = True
+
+    def _before_merge(self, cursor, temporary):
+        super()._before_merge(cursor, temporary)
+        cursor.execute(sql.SQL("""
+            SELECT s.comment_id FROM {} s JOIN {} t USING (comment_id)
+            WHERE s.original_parent_id IS NOT NULL AND t.original_parent_id IS NOT NULL
+                AND s.original_parent_id <> t.original_parent_id LIMIT 1
+        """).format(temporary, self.target))
+        if cursor.fetchone() is not None:
+            raise ValueError("Conflicting original parent for an existing comment.")
+        cursor.execute("SET CONSTRAINTS ALL DEFERRED")
+
+    def _after_merge(self, cursor, inserted):
+        cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
 
 
 def load_comments(archive_path, db, post_id):

@@ -2,6 +2,14 @@ import bz2
 import json
 import tarfile
 
+from db_loaders._bulk import TableLoader
+
+
+class PostsLoader(TableLoader):
+    table = "posts"
+    immutable = ("original_split",)
+    protect_available = True
+
 def load_posts(archive_path, db, limit_per_source=100):
     sources = db.execute("""
         SELECT archive_member, source_id, original_split

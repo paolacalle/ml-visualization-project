@@ -1,5 +1,18 @@
 # Database data tests
 
+The prepared-data database loaders have offline and opt-in PostgreSQL tests:
+
+```bash
+python -m unittest discover -s project/tests -p 'test_db_loaders.py' -v
+```
+
+Without `CMV_TEST_DATABASE_DSN`, four dataset tests run and PostgreSQL tests skip.
+With that environment variable configured, 14 additional integration tests use
+real PostgreSQL COPY, private test schemas, and forced rollback. They test all
+seven loaders and `ParquetDatabaseLoader` without changing production `cmv`
+data. The configured role needs permission to create schemas. See the
+[loader instructions](../database/db_loaders/README.md) for usage and merge rules.
+
 The optional mapping-worker path is tested with:
 
 ```bash
