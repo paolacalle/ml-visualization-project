@@ -229,3 +229,6 @@ __marimo__/
 *.sqlite3
 *.sqlite3.partial
 *.sqlite3.partial-journal
+
+# Raw datasets (CMV archive is 336 MB; download via README instructions)
+data/
