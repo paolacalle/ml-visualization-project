@@ -51,6 +51,11 @@ class MetadataStaging(CommentStaging):
     """
 
     def __init__(self, path, source_map):
+        """Create new local staging with the validated six-source snapshot.
+
+        ``path`` must be new and have an existing parent directory. The source
+        mapping is local input; no PostgreSQL connection is opened.
+        """
         sources = map_sources(source_map)
         self._sources = {row["source_id"]: row for row in sources}
         super().__init__(path)
@@ -66,6 +71,7 @@ class MetadataStaging(CommentStaging):
             raise
 
     def _create_tables(self):
+        """Create typed staging tables, relationship constraints, and canonical views."""
         self.connection.executescript(f"""
             CREATE TABLE sources ({_columns(SOURCE_SCHEMA)},
                 PRIMARY KEY (source_id), UNIQUE (archive_member));
@@ -119,6 +125,7 @@ class MetadataStaging(CommentStaging):
 
     @staticmethod
     def _check_row(table, row):
+        """Reject incorrect columns, required NULLs, booleans/integers, or ranges."""
         schema = TABLE_SCHEMAS[table]
         if set(row) != set(schema.names):
             raise ValueError(f"Expected {table} columns matching its Arrow schema.")
@@ -135,6 +142,7 @@ class MetadataStaging(CommentStaging):
         pa.Table.from_pylist([row], schema=schema)
 
     def _source(self, source_id, *, task=None, split=None):
+        """Resolve an existing snapshot ID and optionally enforce task/split ownership."""
         source = self._sources.get(source_id) if type(source_id) is int else None
         if source is None:
             raise ValueError(f"Unknown source_id: {source_id}")
@@ -145,6 +153,7 @@ class MetadataStaging(CommentStaging):
         return source
 
     def add_comments(self, rows, *, task, split):
+        """Validate comment schema/provenance, then use atomic comment reconciliation."""
         def checked():
             for row in rows:
                 self._check_row("comments", row)
@@ -153,6 +162,13 @@ class MetadataStaging(CommentStaging):
         super().add_comments(checked(), task=task, split=split)
 
     def add_posts(self, rows, *, task="all"):
+        """Merge actual post candidates while preserving split and source provenance.
+
+        Canonical precedence is full discussion, OP task, then pair task. NULL
+        attributes may be filled from fallback sources; contradictory same-task
+        values fail. Referenced post placeholders are created automatically by
+        labels/comments/pairs and become available when a candidate arrives.
+        """
         with self.transaction():
             for row in rows:
                 self._check_row("posts", row)
@@ -229,15 +245,19 @@ class MetadataStaging(CommentStaging):
                     raise ValueError(f"Invalid {table} relationship or unique key: {exc}") from exc
 
     def add_op_labels(self, rows):
+        """Stage supplied boolean labels; create referenced post identities if needed."""
         self._add_rows("op_labels", rows)
 
     def add_pairs(self, rows):
+        """Stage stable pair IDs tied to the snapshot source and physical JSON line."""
         self._add_rows("pairs", rows)
 
     def add_threads(self, rows):
+        """Stage positive/negative threads after their pair rows are present."""
         self._add_rows("threads", rows)
 
     def add_thread_comments(self, rows):
+        """Stage ordered memberships; register missing comment identities as placeholders."""
         self._add_rows("thread_comments", rows)
 
     def add_pair(self, mapped):
@@ -266,7 +286,12 @@ class MetadataStaging(CommentStaging):
             self.add_thread_comments(mapped["thread_comments"])
 
     def iter_table_batches(self, table, *, batch_size=1000, split=None):
-        """Yield declared DB columns for any of the seven tables."""
+        """Yield lists of DB-shaped dictionaries, optionally filtered by split.
+
+        All seven table names are accepted. Each batch has at most ``batch_size``
+        rows; posts/comments include their explicit unavailable placeholders.
+        Partition hints stay internal and never become extra DB columns.
+        """
         if table not in TABLE_SCHEMAS:
             raise ValueError(f"Unknown metadata table: {table}")
         if table == "comments":
@@ -300,7 +325,13 @@ class MetadataStaging(CommentStaging):
             cursor.close()
 
     def validate(self):
-        """Check relationships, two outcomes, positions, and parent-tree cycles."""
+        """Validate every staged table and return table/placeholder counts.
+
+        Check foreign keys, source/split consistency, exactly two pair outcomes,
+        contiguous membership positions, Arrow field values, and parent cycles.
+        Indexed temporary graph traversal stays on SQLite rather than storing
+        the full graph as Python objects. Invalid state raises ``ValueError``.
+        """
         bad = self.connection.execute("PRAGMA foreign_key_check").fetchone()
         if bad is not None:
             raise ValueError(f"Foreign-key violation: {tuple(bad)}")

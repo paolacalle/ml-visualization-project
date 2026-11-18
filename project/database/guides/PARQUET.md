@@ -1,7 +1,7 @@
 # Export CMV text to Parquet
 
 Using the existing dataset? Follow the
-[one-time team download guide](TEAM_DATA.md) instead of rerunning
+[one-time team download guide](../../../TEAM_DATA.md) instead of rerunning
 the exporter. It documents the exact private bucket/prefix, local layout, and
 complete release validation.
 
@@ -14,19 +14,17 @@ From the repository root, with your project environment activated:
 
 ```bash
 python -m pip install -r requirements.txt
-python project/database/export_text_parquet.py
+python project/database/parquet_loaders/export_text_parquet.py \
+  --archive project/data/raw/cmv.tar.bz2 \
+  --output project/data/processed/cmv-text/v2
 ```
 
-Default paths are resolved relative to the script, so the working directory does
-not affect them:
-
-- Input: `project/data/raw/cmv.tar.bz2`.
-- Output: `project/data/processed/cmv-text/v1`.
-
-The existing `v1` export is retained. To reproduce the export in a new directory:
+Pass the input and output paths explicitly from the repository root. The existing
+`v1` export is retained; choose a new, unused directory when reproducing it:
 
 ```bash
-python project/database/export_text_parquet.py \
+python project/database/parquet_loaders/export_text_parquet.py \
+  --archive project/data/raw/cmv.tar.bz2 \
   --output project/data/processed/cmv-text/v2
 ```
 
@@ -71,7 +69,8 @@ python -m unittest discover -s project/tests -v
 ```
 
 Use `TextStore.validate()` as shown in the
-[team download guide](TEAM_DATA.md#4-verify-the-complete-download-and-retrieve-the-sample)
+[team download guide](../../../TEAM_DATA.md#4-verify-the-complete-download-and-retrieve-the-sample)
 to check all local Parquet checksums, sizes, schemas, row counts, and index
 references. These operations do not connect to PostgreSQL or cloud storage.
-See `project/tests/README.md` for the test command.
+See the [test instructions](../../tests/README.md) for the test command, or the
+[reader guide](READERS.md) for direct lookup examples.

@@ -1,3 +1,10 @@
+"""Manual setup helpers; direct execution creates the database schema.
+
+Use ``MetadataRunner.py`` for raw-to-Parquet preparation and
+``ParquetDatabaseLoader.py`` for imports. Running this file is a schema-creation
+operation and is not the normal way to reload or query an existing database.
+"""
+
 import argparse
 from pathlib import Path
 import json
@@ -11,15 +18,14 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 ARCHIVE_PATH = PROJECT_DIR / "data" / "raw" / "cmv.tar.bz2"
 
 
-def main():
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     "--migrate-posts",
-    #     action="store_true",
-    #     help="Backfill new post columns and remove extra_json; run once.",
-    # )
-    # args = parser.parse_args()
+def add_snap_shots():
+    """Cache/read source IDs, then print the first mapped discussion post.
 
+    Opens the configured PostgreSQL connection and reuses a saved snapshot when
+    present. It reads the raw archive for a sample and does not import its data.
+    It is available for manual use but is not the script's default entrypoint.
+    """
+    
     db = Database()
 
     try:
@@ -52,5 +58,20 @@ def main():
         db.close()
 
 
+def create_schema():
+    """Connect and execute ``queries/create_schema.sql`` in a transaction.
+
+    Destination tables must not already exist. This does not drop old tables or
+    import data. The connection is closed on success or error.
+    """
+
+    db = Database()
+
+    try:
+        db.execute("create_schema.sql")
+    
+    finally:
+        db.close()
+
 if __name__ == "__main__":
-    main()
+    create_schema()

@@ -2,7 +2,17 @@ import bz2
 import json
 import tarfile
 
+from db_loaders._bulk import TableLoader
+
+
+class PostsLoader(TableLoader):
+    """Merge post metadata while preserving splits and protecting available rows."""
+    table = "posts"
+    immutable = ("original_split",)
+    protect_available = True
+
 def load_posts(archive_path, db, limit_per_source=100):
+    """Legacy archive-scanning sample importer; use PostsLoader for prepared rows."""
     sources = db.execute("""
         SELECT archive_member, source_id, original_split
         FROM cmv.sources

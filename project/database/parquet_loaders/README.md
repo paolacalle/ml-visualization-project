@@ -1,5 +1,9 @@
 # Metadata preparation
 
+For a quick overview and runnable commands, see the
+[runner guide](../guides/RUNNERS.md#prepare-metadata). For direct record lookups,
+see the [reader examples](../guides/READERS.md).
+
 `MetadataRunner` connects `ArchiveReader`, the table mappers, and
 `MetadataStaging` in one sequential pass. It uses the saved source snapshot and
 requires no database connection.
@@ -19,7 +23,8 @@ python project/database/MetadataRunner.py \
 
 The staging path, output directory, and output's `.partial` directory must be
 new. Parent directories are created if needed. Omit `--output` to prepare and
-validate SQLite staging only. Database loading remains a separate step.
+validate SQLite staging only. Database loading is a separate step through
+[ParquetDatabaseLoader](../db_loaders/README.md).
 
 To use the class from another script under `project/database`:
 

@@ -1,5 +1,31 @@
 # Database data tests
 
+After importing the real metadata release, verify the loaded `cmv` data with:
+
+```bash
+python project/tests/test_loaded_database.py -v
+```
+
+These seven checks use a read-only transaction and compare database rows with
+the published Parquet release: all table totals, source IDs/splits, the large
+sample discussion and OP label, its reply tree, paired threads/memberships,
+missing-parent placeholders, and a false OP label. The direct command opts into
+the configured live database; normal test discovery skips this class unless
+`CMV_VERIFY_LIVE_DB=1`. `CMV_METADATA_DATASET` can select another metadata release.
+
+The prepared-data database loaders have offline and opt-in PostgreSQL tests:
+
+```bash
+python -m unittest discover -s project/tests -p 'test_db_loaders.py' -v
+```
+
+Without `CMV_TEST_DATABASE_DSN`, four dataset tests run and PostgreSQL tests skip.
+With that environment variable configured, 14 additional integration tests use
+real PostgreSQL COPY, private test schemas, and forced rollback. They test all
+seven loaders and `ParquetDatabaseLoader` without changing production `cmv`
+data. The configured role needs permission to create schemas. See the
+[loader instructions](../database/db_loaders/README.md) for usage and merge rules.
+
 The optional mapping-worker path is tested with:
 
 ```bash
