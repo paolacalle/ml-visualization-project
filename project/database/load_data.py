@@ -1,3 +1,5 @@
+"""Run one-off queries here."""
+
 import argparse
 from pathlib import Path
 import json
@@ -12,13 +14,7 @@ ARCHIVE_PATH = PROJECT_DIR / "data" / "raw" / "cmv.tar.bz2"
 
 
 def add_snap_shots():
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     "--migrate-posts",
-    #     action="store_true",
-    #     help="Backfill new post columns and remove extra_json; run once.",
-    # )
-    # args = parser.parse_args()
+    """Creates the snapshot of sources"""
 
     db = Database()
 
@@ -53,6 +49,7 @@ def add_snap_shots():
 
 
 def create_schema():
+    """Creates the DB schema"""
     db = Database()
 
     try:
