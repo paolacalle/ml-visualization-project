@@ -5,4 +5,7 @@ For the shared text dataset, follow the
 PostgreSQL stores shared metadata and features; local Parquet files provide text
 through `TextStore`.
 
-To regenerate the text export, see [PARQUET.md](PARQUET.md).
+For reader examples and preparation/import commands, see the
+[data pipeline guides](project/database/guides/README.md).
+To regenerate the text export, see the
+[Parquet text-export guide](project/database/guides/PARQUET.md).
