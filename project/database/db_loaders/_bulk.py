@@ -36,6 +36,7 @@ class TableLoader:
     protect_available = False
 
     def __init__(self, db, *, schema="cmv"):
+        """Bind a table subclass to a caller-owned Database/psycopg connection."""
         self.connection = getattr(db, "connection", db)
         self.schema = schema
         self.arrow_schema = TABLE_SCHEMAS[self.table]
@@ -50,6 +51,7 @@ class TableLoader:
         )
 
     def _before_merge(self, cursor, temporary):
+        """Reject conflicting immutable values before any target rows are changed."""
         immutable = self.immutable
         if immutable is None:
             immutable = tuple(name for name in self.names if name not in self.keys)
@@ -64,9 +66,11 @@ class TableLoader:
                 raise ValueError(f"Conflicting {self.table} identity/relationship: {conflict}")
 
     def _after_merge(self, cursor, inserted):
+        """Subclass hook for sequence adjustment or deferred relationship checks."""
         pass
 
     def _merge(self, cursor, temporary):
+        """Merge one staged table and return the affected insert/update row count."""
         query = sql.SQL("INSERT INTO {} AS t ({}) {} SELECT {} FROM {} s ").format(
             self.target, columns(self.names),
             sql.SQL("OVERRIDING SYSTEM VALUE") if self.table == "sources" else sql.SQL(""),
@@ -90,7 +94,14 @@ class TableLoader:
         return cursor.rowcount
 
     def load(self, rows):
-        """Load an iterable of DB-shaped dictionaries without per-row INSERTs."""
+        """COPY and merge an iterable of dictionaries matching this table's schema.
+
+        A private temporary table receives every selected row before merging;
+        the client holds only the incoming batch. Primary-key duplicates fail.
+        Return processed/inserted/updated/unchanged counts. All writes are atomic
+        or form a savepoint within the caller's outer transaction. The input
+        generator is closed after consumption or failure; the DB stays open.
+        """
         temporary_name = f"cmv_import_{self.table}_{uuid4().hex}"
         temporary = sql.Identifier("pg_temp", temporary_name)
         names_set = set(self.names)

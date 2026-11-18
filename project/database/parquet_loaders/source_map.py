@@ -1,3 +1,5 @@
+"""Snapshot database source IDs and validate their six archive-member mappings."""
+
 import json 
 from pathlib import Path 
 import os
@@ -40,6 +42,14 @@ def map_sources(source_map):
     return rows
 
 def snapshot_sources(db, output_path):
+    """Read a cached source-map JSON or query/save ``cmv.sources`` once.
+
+    ``db`` provides ``execute`` and ``output_path`` is the local snapshot file.
+    An existing file is returned without a database query or overwrite. A new
+    snapshot requires exactly six query rows, creates parent directories, and
+    returns the filename-to-source dictionary. Call ``map_sources`` afterwards
+    to validate cached or fresh IDs, member names, tasks, and splits.
+    """
     output_path = Path(output_path)
     
     if output_path.exists():

@@ -30,6 +30,7 @@ class CommentsLoader(TableLoader):
 
 
 def load_comments(archive_path, db, post_id):
+    """Legacy one-discussion archive importer; use CommentsLoader for Parquet rows."""
     
     # get the source of this post
     sources = db.execute(

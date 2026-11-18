@@ -1,4 +1,9 @@
-"""Stream CMV post/comment text into versioned Parquet files; no database connection."""
+"""Stream CMV post/comment text into versioned Parquet files; no database connection.
+
+This text-only exporter reads the two ``all/`` members. Metadata extraction uses
+``MetadataRunner`` instead. Pass explicit ``--archive``/``--output`` paths as in
+``guides/PARQUET.md``; existing releases are never overwritten.
+"""
 import argparse
 
 import bz2
@@ -31,6 +36,7 @@ COMMENT_SCHEMA = pa.schema([
 ])
 
 def checksum(path):
+    """Return a file's SHA-256 digest using bounded binary reads."""
     digest = hashlib.sha256()
     with path.open('rb') as stream:
         while block := stream.read(1024 * 1024):
@@ -38,12 +44,21 @@ def checksum(path):
     return digest.hexdigest()
 
 def rows_checksum(rows, key):
+    """Hash stable JSON rows sorted by an ID for exact text round-trip comparison."""
     payload = json.dumps(sorted(rows, key=lambda row: row[key]),
                          ensure_ascii=False, sort_keys=True, separators=(',', ':'))
     return hashlib.sha256(payload.encode('utf-8')).hexdigest()
 
 class Shards:
+    """Buffer one text table/split while keeping each discussion in one file.
+
+    ``add`` returns the future shard path used by the discussion index; ``flush``
+    writes buffered rows, registers the file checksum, and advances its part ID.
+    The target is a byte-sized buffer, with a post-write 50 MB file limit.
+    """
+
     def __init__(self, root, kind, split, schema, files):
+        """Create the table/split folder and keep the caller's shared file list."""
         self.root = root
         self.folder = Path(kind) / f'split={split}'
         (self.root / self.folder).mkdir(parents=True)
@@ -54,6 +69,11 @@ class Shards:
         self.part = 0
 
     def add(self, rows):
+        """Buffer a discussion's rows and return its shard path, or None if empty.
+
+        A full existing buffer is flushed before adding a new discussion, so a
+        discussion's comment rows are not divided between text shards.
+        """
         if not rows:
             # no rows to add
             return None
@@ -72,6 +92,11 @@ class Shards:
         return relative
 
     def flush(self):
+        """Write sorted, compressed rows and append size/count/checksum metadata.
+
+        Empty buffers do nothing. An oversized compressed file raises, leaving
+        the candidate release unpublished for inspection.
+        """
         if not self.buffers:
             return
         
@@ -115,6 +140,18 @@ class Shards:
 
 
 def export_text(archive_path, output, verify_post='t3_37i8f6'):
+    """Build a new text release and print its final size/verification summary.
+
+    Stream both discussion sources, preserve original titles/bodies and IDs,
+    and write posts/comments, a discussion index, and a manifest. Compare the
+    chosen ``verify_post`` and all its supplied comments with raw-source hashes.
+    The default sample is ``t3_37i8f6``; it must exist in the source archive.
+
+    ``archive_path`` and ``output`` are resolved against the current directory.
+    Existing output or ``.partial`` paths are refused. Publication occurs only
+    after verification. This function prints progress/results and returns None;
+    it does not register source IDs or upload text to cloud storage.
+    """
     archive_path = Path(archive_path).resolve()
     output = Path(output).resolve()
     partial = output.with_name(output.name + '.partial')
@@ -259,6 +296,7 @@ def export_text(archive_path, output, verify_post='t3_37i8f6'):
 
 
 def main():
+    """Parse text-export paths/sample ID and run the local exporter."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--archive', type=Path, default=DEFAULT_ARCHIVE)
     parser.add_argument('--output', type=Path, default=DEFAULT_OUTPUT,

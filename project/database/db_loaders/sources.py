@@ -43,6 +43,7 @@ class SourcesLoader(TableLoader):
 
 
 def load_sources(archive_path, db):
+    """Legacy archive-member registration; new imports preserve IDs with SourcesLoader."""
     with tarfile.open(archive_path, "r|bz2") as archive:
         for member in archive:
             if not member.isfile():

@@ -1,3 +1,9 @@
+"""Retrieve original text by the same post/comment IDs used in PostgreSQL.
+
+Use the downloaded ``cmv-text`` release, not ``cmv-metadata``. See
+``guides/READERS.md`` for standalone and database-query enrichment examples.
+"""
+
 import json
 import hashlib
 from collections import Counter
@@ -7,9 +13,22 @@ import pyarrow.parquet as pq
 
 
 class TextStore:
-    """Read versioned post and comment text from local Parquet files."""
+    """Read versioned text locally using a small discussion-to-file index.
+
+    Construction reads the manifest/index and checks the requested version.
+    Individual lookups read indexed Parquet files without hashing the release.
+    Call ``validate()`` after a download for full integrity verification. No
+    method opens a database connection or downloads objects from Storage.
+    """
 
     def __init__(self, dataset_dir, expected_version="v1"):
+        """Open a local text release; reject a manifest version mismatch.
+
+        Args:
+            dataset_dir: Directory containing the text manifest, index, and
+                preserved ``posts/`` and ``comments/`` subdirectories.
+            expected_version: Exact manifest version to accept, default ``v1``.
+        """
         self.dataset_dir = Path(dataset_dir).expanduser().resolve()
 
         manifest_path = self.dataset_dir / "manifest.json"
@@ -34,6 +53,7 @@ class TextStore:
         )
 
     def _read_table(self, filename, columns, filters):
+        """Read selected columns/rows from one indexed shard, with file context."""
         path = self.dataset_dir / filename
 
         if not path.is_file():
@@ -46,6 +66,7 @@ class TextStore:
 
     @staticmethod
     def _verify_file(path, expected):
+        """Check one file against its manifest byte count and SHA-256 digest."""
         if not path.is_file():
             raise FileNotFoundError(f"Missing dataset file: {path}")
 
@@ -61,7 +82,12 @@ class TextStore:
             raise ValueError(f"Checksum mismatch: {path}")
 
     def validate(self):
-        """Check the complete local release; normal lookups do not hash files."""
+        """Scan the complete text release and return a verification summary.
+
+        Check sizes, checksums, string schemas, file row counts, every index
+        pointer, and source totals. Raises on missing/corrupt/inconsistent files.
+        This operation is separate from the inexpensive indexed lookup methods.
+        """
         index_info = self.manifest["discussion_index"]
         index_path = self.dataset_dir / index_info["path"]
         self._verify_file(index_path, index_info)
@@ -140,6 +166,11 @@ class TextStore:
         }
     
     def get_post(self, post_id):
+        """Return one ``{post_id, title, body}`` dictionary for a Reddit post ID.
+
+        Raises ``KeyError`` for an unindexed ID and ``ValueError`` if the indexed
+        shard does not contain exactly one matching post.
+        """
         location = self.index.get(post_id)
         
         if location is None: 
@@ -160,6 +191,12 @@ class TextStore:
         return table.to_pylist()[0]
     
     def get_comments(self, post_id):
+        """Return a list of ``{comment_id, post_id, body}`` dictionaries.
+
+        A discussion with zero source comments returns ``[]``. Unknown posts
+        raise ``KeyError``; mismatched exported/indexed counts raise ``ValueError``.
+        Relationships and labels are supplied by the metadata database.
+        """
         location = self.index.get(post_id)
         
         if location is None:
@@ -182,6 +219,14 @@ class TextStore:
         return table.to_pylist()
     
     def attach_comment_text(self, rows):
+        """Return copies of metadata rows with canonical comment ``body`` added.
+
+        Each input dictionary must contain ``post_id`` and ``comment_id``.
+        Requests are grouped so each required shard is read once per call.
+        Input order, duplicate requests, and other metadata are preserved;
+        input dictionaries are not mutated. Missing text raises ``KeyError``.
+        Unavailable metadata placeholders have no corresponding text row.
+        """
         rows = list(rows)
         files = {}
         

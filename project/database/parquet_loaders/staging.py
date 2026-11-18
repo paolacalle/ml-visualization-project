@@ -21,6 +21,11 @@ class CommentStaging:
     """
 
     def __init__(self, path):
+        """Create a new SQLite file in an existing parent directory.
+
+        Existing files raise ``FileExistsError``. The file has indexed identity
+        and parent-reference lookups and stays on disk after ``close()``.
+        """
         self.path = Path(path)
         # Refuse to reuse or overwrite a previous preparation run.
         with self.path.open("xb"):
@@ -94,6 +99,7 @@ class CommentStaging:
             self.connection.execute(f"RELEASE {name}")
 
     def _ensure_post(self, post_id, split):
+        """Insert an unknown post identity or verify its immutable split by index."""
         if not isinstance(post_id, str) or not post_id.startswith("t3_") or len(post_id) <= 3:
             raise ValueError(f"Invalid post ID: {post_id}")
         if split not in ("train", "heldout"):
@@ -108,6 +114,11 @@ class CommentStaging:
         self.connection.execute("INSERT INTO post_splits VALUES (?, ?)", (post_id, split))
 
     def _ensure_key(self, comment_id, post_id, split):
+        """Verify/insert an identity without updating an already-correct key.
+
+        The early return avoids unnecessary incoming foreign-key checks. The
+        same helper registers missing parents as metadata placeholders.
+        """
         if not isinstance(comment_id, str) or not comment_id.startswith("t1_") or len(comment_id) <= 3:
             raise ValueError(f"Invalid comment ID: {comment_id}")
         self._ensure_post(post_id, split)
@@ -124,7 +135,13 @@ class CommentStaging:
                                 (comment_id, post_id, split))
 
     def add_comments(self, rows, *, task, split):
-        """Atomically merge a batch of mapped rows from all/ or pair_task/."""
+        """Atomically merge mapped ``COMMENT_SCHEMA`` rows from one task/split.
+
+        Accept ``task='all'`` or ``'pair_task'`` and an original train/heldout
+        split. Prefer full-discussion values, fill NULLs from pair metadata, and
+        keep placeholders for absent parents. Contradictory ownership, splits,
+        parent links, or same-task values raise and roll back this batch.
+        """
         if task not in ("all", "pair_task"):
             raise ValueError("Expected task 'all' or 'pair_task'.")
         if split not in ("train", "heldout"):
@@ -188,6 +205,7 @@ class CommentStaging:
         return result
 
     def get_comment(self, comment_id):
+        """Return one reconciled comment/placeholder dictionary, or None if unknown."""
         row = self.connection.execute(
             f"SELECT {SELECT_COLUMNS} FROM reconciled_comments WHERE comment_id = ?",
             (comment_id,),
@@ -214,6 +232,7 @@ class CommentStaging:
             cursor.close()
 
     def close(self):
+        """Close SQLite while retaining its file for inspection or later cleanup."""
         self.connection.close()
 
     def __enter__(self):

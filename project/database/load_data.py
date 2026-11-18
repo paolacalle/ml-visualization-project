@@ -1,4 +1,9 @@
-"""Run one-off queries here."""
+"""Manual setup helpers; direct execution creates the database schema.
+
+Use ``MetadataRunner.py`` for raw-to-Parquet preparation and
+``ParquetDatabaseLoader.py`` for imports. Running this file is a schema-creation
+operation and is not the normal way to reload or query an existing database.
+"""
 
 import argparse
 from pathlib import Path
@@ -14,8 +19,13 @@ ARCHIVE_PATH = PROJECT_DIR / "data" / "raw" / "cmv.tar.bz2"
 
 
 def add_snap_shots():
-    """Creates the snapshot of sources"""
+    """Cache/read source IDs, then print the first mapped discussion post.
 
+    Opens the configured PostgreSQL connection and reuses a saved snapshot when
+    present. It reads the raw archive for a sample and does not import its data.
+    It is available for manual use but is not the script's default entrypoint.
+    """
+    
     db = Database()
 
     try:
@@ -49,7 +59,12 @@ def add_snap_shots():
 
 
 def create_schema():
-    """Creates the DB schema"""
+    """Connect and execute ``queries/create_schema.sql`` in a transaction.
+
+    Destination tables must not already exist. This does not drop old tables or
+    import data. The connection is closed on success or error.
+    """
+
     db = Database()
 
     try:

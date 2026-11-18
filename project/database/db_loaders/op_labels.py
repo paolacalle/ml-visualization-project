@@ -6,10 +6,12 @@ from db_loaders._bulk import TableLoader
 
 
 class OpLabelsLoader(TableLoader):
+    """Insert supplied OP labels; reject changes to an existing post's label."""
     table = "op_labels"
 
 
 def load_op_label(archive_path, db, post_id):
+    """Legacy raw-source label lookup/import; use OpLabelsLoader for prepared rows."""
     sources = db.execute(
         """
         SELECT s.source_id, s.archive_member

@@ -1,4 +1,8 @@
-"""Import verified metadata Parquet through table-specific PostgreSQL loaders."""
+"""Import verified metadata Parquet through table-specific PostgreSQL loaders.
+
+``--check`` is a read-only preflight. A normal run writes the chosen discussion
+or entire release. See ``guides/RUNNERS.md`` and ``db_loaders/README.md``.
+"""
 
 import argparse
 import json
@@ -33,11 +37,28 @@ class ParquetDatabaseLoader:
     """
 
     def __init__(self, db, dataset_path, *, schema="cmv", batch_size=10000):
+        """Configure an import using a caller-owned open PostgreSQL connection.
+
+        Args:
+            db: Existing ``Database`` wrapper or psycopg connection.
+            dataset_path: Published ``cmv-metadata`` release directory.
+            schema: Existing destination schema, default ``cmv``.
+            batch_size: Positive Parquet read-batch row limit. COPY still stages
+                all selected rows of a table before its server-side merge.
+
+        Construction does not read Parquet or execute queries.
+        """
         self.connection = getattr(db, "connection", db)
         self.schema = schema
         self.dataset = MetadataDataset(dataset_path, batch_size=batch_size)
 
     def _preflight(self, cursor):
+        """Check column types, primary keys, and source identities; return source count.
+
+        Extra database columns are allowed when nullable or supplied by defaults.
+        Source IDs and archive-member mappings must match the release exactly
+        wherever their keys overlap; this method never silently remaps IDs.
+        """
         cursor.execute("""
             SELECT table_name, column_name, udt_name, is_nullable, column_default, is_identity
             FROM information_schema.columns WHERE table_schema = %s
@@ -79,7 +100,12 @@ class ParquetDatabaseLoader:
         return len(existing)
 
     def check(self, *, post_id=None):
-        """Verify the release, selected discussion, schema, and existing sources."""
+        """Return ``ready``, expected counts, and existing source count, read-only.
+
+        ``post_id=None`` checks the full release; an ID checks that discussion's
+        indexed selection. Both modes validate all release files and inspect the
+        destination schema. No COPY, table creation, or data mutation occurs.
+        """
         self.dataset.validate()
         expected = self.dataset.expected_counts(post_id)
         with self.connection.transaction(), self.connection.cursor() as cursor:
@@ -87,6 +113,19 @@ class ParquetDatabaseLoader:
         return {"status": "ready", "expected_rows": expected, "existing_sources": existing}
 
     def load(self, *, post_id=None):
+        """Verify and merge a complete discussion or release in dependency order.
+
+        Sources, posts, comments, labels, pairs, threads, and memberships share
+        one transaction. Parents can occur in later shards because each table is
+        copied completely before merging. Deferred checks are forced before
+        dependent data is accepted and before completion.
+
+        Return ``status=loaded``, per-table processed/inserted/updated/unchanged
+        counts, and total destination counts. Existing unrelated rows remain.
+        A failure rolls back this import; a caller-owned outer transaction must
+        still be committed by the caller. CLI output appears after completion,
+        so another connection may see empty/old tables while the load is active.
+        """
         self.dataset.validate()
         expected = self.dataset.expected_counts(post_id)
         results = {}
@@ -109,6 +148,7 @@ class ParquetDatabaseLoader:
 
 
 def main():
+    """Connect from local environment settings, run check/import, and close the DB."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, required=True)
     parser.add_argument("--post-id", help="Import one complete discussion first.")

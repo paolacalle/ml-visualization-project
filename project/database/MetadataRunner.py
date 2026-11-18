@@ -1,4 +1,8 @@
-"""Prepare metadata in one archive pass, optionally mapping with worker processes."""
+"""Prepare metadata in one archive pass, optionally mapping with worker processes.
+
+Run this file with ``--help`` for CLI arguments. ``guides/RUNNERS.md`` shows the
+extraction command and distinguishes local preparation from PostgreSQL loading.
+"""
 
 import argparse
 import copy
@@ -25,6 +29,7 @@ from parquet_loaders.source_map import map_sources
 
 
 def _discussion_comments(record, source):
+    """Yield mapped flat-list comments, attaching their positions to errors."""
     comments = record.get("comments", [])
     if not isinstance(comments, list):
         raise ValueError("Expected a flat comments list in an all/ record.")
@@ -38,7 +43,13 @@ def _discussion_comments(record, source):
 
 
 def prepare_record(job):
-    """Map ordinary data in a worker; never receive an open reader or database."""
+    """Map ``(member, line, decoded_record, source)`` into a picklable result.
+
+    Returns ``(member, line, source, post_row, task_rows)``. The task rows contain
+    comments, an OP label, or a pair bundle. Comments are materialized per job.
+    Workers receive ordinary data, never an open archive or SQLite connection.
+    Parsing/decompression have already happened in the parent process.
+    """
     member, line, record, source = job
     try:
         task = source["task"]
@@ -70,6 +81,24 @@ class MetadataRunner:
 
     def __init__(self, archive_path, source_map, staging_path, *, batch_size=1000,
                  output_path=None, rows_per_file=50000, workers=1):
+        """Configure preparation without opening the archive or creating staging.
+
+        Args:
+            archive_path: Existing raw ``cmv.tar.bz2`` path.
+            source_map: Six-source snapshot dictionary or its JSON file path;
+                actual database source IDs are preserved.
+            staging_path: New SQLite file; existing files cannot be resumed.
+            batch_size: Positive comment-write/export-read batch limit in rows.
+            output_path: Optional new metadata release directory. ``None``
+                prepares/validates staging without publishing Parquet.
+            rows_per_file: Positive maximum metadata rows per export shard.
+                The six-row global source file is written separately.
+            workers: Positive mapping-process count; ``1`` runs in the parent.
+                Larger values require a caller script's main guard.
+
+        Relative paths resolve against the current working directory. File
+        creation and overwrite checks happen when ``run()`` starts.
+        """
         if type(batch_size) is not int or batch_size <= 0:
             raise ValueError("batch_size must be a positive integer.")
         if type(workers) is not int or workers <= 0:
@@ -90,6 +119,11 @@ class MetadataRunner:
         self.rows_per_file = rows_per_file
 
     def _write_prepared(self, stage, prepared):
+        """Write one mapped result atomically; return supplied comment occurrences.
+
+        Only the parent process calls this method. Nested staging savepoints
+        keep a post, its labels/comments, and any pair relationships together.
+        """
         member, line, source, post, data = prepared
         task = source["task"]
         # Nested staging calls use savepoints; nothing from a failed raw record
@@ -107,6 +141,12 @@ class MetadataRunner:
         return len(data.get("comments", []))
 
     def _prepared_records(self, records, source_map):
+        """Yield mapping results in input order with at most ``2 * workers`` queued.
+
+        Spawned children cannot inherit the open SQLite connection. Read-ahead
+        errors are deferred until the successful queued prefix has been written.
+        Closing this generator cancels pending work and shuts down the pool.
+        """
         if self.workers == 1:
             for member, line, record in records:
                 yield prepare_record((member, line, record, source_map[member]))
@@ -141,7 +181,20 @@ class MetadataRunner:
                     future.cancel()
 
     def run(self):
-        """Return input counts and validation totals after a successful run."""
+        """Prepare all recognized sources once, validate, and optionally export.
+
+        Returns:
+            A dictionary with ``status``, ``staging_path``, ``input_by_source``,
+            and ``validation``. Export mode adds ``export`` and returns status
+            ``exported_metadata``; otherwise status is ``validated_staging``.
+            Input comments count supplied occurrences, while validation reports
+            canonical rows and placeholders separately.
+
+        Raises on missing/duplicate source members, mapping conflicts, invalid
+        relationships, or existing output paths. A failed record rolls back;
+        earlier staging records remain for inspection. Staging closes on exit.
+        Neither mode modifies PostgreSQL or uploads files to Storage.
+        """
         if not self.archive_path.is_file():
             raise FileNotFoundError(self.archive_path)
         # Take another private copy so caller edits cannot change a running pass.
@@ -205,6 +258,7 @@ class MetadataRunner:
 
 
 def main():
+    """Run the CLI; print periodic progress to stderr and the final JSON to stdout."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--archive", type=Path, required=True)
     parser.add_argument("--source-map", type=Path, required=True)

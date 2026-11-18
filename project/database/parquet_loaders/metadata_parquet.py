@@ -72,9 +72,21 @@ def _safe_path(root, relative):
 
 
 class MetadataParquetWriter:
-    """Write bounded shards from open staging and publish after verification."""
+    """Write all seven metadata tables, an index, and a provenance manifest.
+
+    The caller supplies open ``MetadataStaging``. A new ``.partial`` sibling
+    directory holds candidate files until offline verification succeeds; then
+    it is renamed to the final release directory. The writer owns output files,
+    but does not close staging, reparse the archive, or contact PostgreSQL.
+    """
 
     def __init__(self, output_path, *, rows_per_file=50000, batch_size=1000):
+        """Store a new release path and positive shard/read-batch row limits.
+
+        One shard plus an incoming batch and the discussion index are kept in
+        memory. Files use Zstandard level 9; source rows share one global file.
+        This constructor creates no directories.
+        """
         for name, value in (("rows_per_file", rows_per_file), ("batch_size", batch_size)):
             if type(value) is not int or value <= 0:
                 raise ValueError(f"{name} must be a positive integer.")
@@ -84,11 +96,13 @@ class MetadataParquetWriter:
         self.batch_size = batch_size
 
     def check_destination(self):
+        """Raise ``FileExistsError`` if the release or its partial sibling exists."""
         for path in (self.output_path, self.partial_path):
             if path.exists() or path.is_symlink():
                 raise FileExistsError(f"Refusing to overwrite {path}; choose a new output path.")
 
     def _write_file(self, name, split, part, buffers, files, index):
+        """Sort/write a shard, record byte/row hashes, and update discussion pointers."""
         schema = TABLE_SCHEMAS[name]
         table = pa.concat_tables(buffers) if buffers else pa.Table.from_pylist([], schema=schema)
         sorting = list(TABLE_KEYS[name])
@@ -113,6 +127,7 @@ class MetadataParquetWriter:
             _index_file(index, name, split, relative, Counter(table["post_id"].to_pylist()))
 
     def _write_partition(self, stage, name, split, files, index):
+        """Flush bounded shards for a table/split, including an explicit empty file."""
         buffers, buffered_rows, part = [], 0, 0
         # Only this shard and one incoming batch are held in memory.
         with closing(stage.iter_table_batches(name, batch_size=self.batch_size, split=split)) as batches:
@@ -133,6 +148,18 @@ class MetadataParquetWriter:
             self._write_file(name, split, part, buffers, files, index)
 
     def write(self, stage, *, archive_path, input_by_source):
+        """Validate staging, export every table, verify the release, and publish.
+
+        Args:
+            stage: Open ``MetadataStaging`` with all mapped records present.
+            archive_path: Existing raw archive, read for its provenance checksum.
+            input_by_source: All six member names mapped to nonnegative
+                ``records`` and ``comments`` occurrence counts from the runner.
+
+        Return output path, validation totals, file/byte counts, and discussion
+        count. A failed write/verification leaves ``.partial`` for inspection and
+        never publishes it. Existing release/partial directories are refused.
+        """
         self.check_destination()
         archive = Path(archive_path).resolve()
         if not archive.is_file():
