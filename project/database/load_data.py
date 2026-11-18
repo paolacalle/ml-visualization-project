@@ -11,7 +11,7 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 ARCHIVE_PATH = PROJECT_DIR / "data" / "raw" / "cmv.tar.bz2"
 
 
-def main():
+def add_snap_shots():
     # parser = argparse.ArgumentParser()
     # parser.add_argument(
     #     "--migrate-posts",
@@ -52,5 +52,14 @@ def main():
         db.close()
 
 
+def create_schema():
+    db = Database()
+
+    try:
+        db.execute("create_schema.sql")
+    
+    finally:
+        db.close()
+
 if __name__ == "__main__":
-    main()
+    create_schema()
