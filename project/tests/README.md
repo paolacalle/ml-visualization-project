@@ -1,5 +1,18 @@
 # Database data tests
 
+After importing the real metadata release, verify the loaded `cmv` data with:
+
+```bash
+python project/tests/test_loaded_database.py -v
+```
+
+These seven checks use a read-only transaction and compare database rows with
+the published Parquet release: all table totals, source IDs/splits, the large
+sample discussion and OP label, its reply tree, paired threads/memberships,
+missing-parent placeholders, and a false OP label. The direct command opts into
+the configured live database; normal test discovery skips this class unless
+`CMV_VERIFY_LIVE_DB=1`. `CMV_METADATA_DATASET` can select another metadata release.
+
 The prepared-data database loaders have offline and opt-in PostgreSQL tests:
 
 ```bash

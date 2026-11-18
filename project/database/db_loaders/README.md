@@ -118,3 +118,13 @@ placeholder enrichment, one-discussion/full orchestration, and all-table rollbac
 The real metadata release passed read-only preflight. The 14 PostgreSQL
 integration tests passed against isolated rolled-back schemas; production `cmv`
 row counts were checked afterwards and remained unchanged.
+
+After the real import, run its seven read-only verification cases with:
+
+```bash
+python project/tests/test_loaded_database.py -v
+```
+
+These compare real table totals and selected discussions against Parquet, and
+check labels, source IDs, parent links, missing-parent placeholders, pair outcomes,
+and ordered memberships. They do not insert, update, or delete rows.
