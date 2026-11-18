@@ -1,5 +1,9 @@
 # Metadata preparation
 
+For a quick overview and runnable commands, see the
+[runner guide](../guides/RUNNERS.md#prepare-metadata). For direct record lookups,
+see the [reader examples](../guides/READERS.md).
+
 `MetadataRunner` connects `ArchiveReader`, the table mappers, and
 `MetadataStaging` in one sequential pass. It uses the saved source snapshot and
 requires no database connection.

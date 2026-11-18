@@ -1,5 +1,8 @@
 # Loading prepared metadata into PostgreSQL
 
+For a quick overview and runnable commands, see the
+[runner guide](../guides/RUNNERS.md#import-metadata-into-postgresql).
+
 `ParquetDatabaseLoader` reads the published metadata release and calls seven
 table-specific loaders in dependency order:
 
