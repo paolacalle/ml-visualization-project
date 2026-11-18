@@ -7,15 +7,22 @@ class ArchiveReader():
     """Stream JSON records from the CMV archive"""
     
     def __init__(self, archive_path, source_map):
-        self.archive_map
+        self.archive_path = archive_path
         self.source_map = source_map
+        self.seen_members = set()
         
     def iter_records(self, task=None):
+        """Iterator it opens the bz2 zipped file user want to iterate."""
+        self.seen_members.clear()
         with tarfile.open(self.archive_path, "r|bz2") as archive:
             for member in archive:
                 
                 if not member.isfile() or member.name not in self.source_map:
                     continue
+
+                if member.name in self.seen_members:
+                    raise ValueError(f"Duplicate archive member: {member.name}")
+                self.seen_members.add(member.name)
                 
                 source = self.source_map[member.name]
                 
@@ -46,4 +53,6 @@ class ArchiveReader():
                                     "expected a JSON object"
                                 )
 
+                            # yield information so controller can use 
+                            # this data right away
                             yield member.name, line_number, record
