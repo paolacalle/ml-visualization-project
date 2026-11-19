@@ -7,8 +7,9 @@ python -m pip install -e .
 ```
 
 The distribution is named `cmv-data`; its Python import is `cmv_data`. Dependencies
-are pinned in `pyproject.toml`, and `requirements.txt` delegates to the same
-package. Editable installation uses the code in your checkout, so Python sees
+are listed explicitly in `requirements.txt` and in the package metadata in
+`pyproject.toml`; keep their versions aligned. Both installation commands include
+the local package. Editable installation uses the code in your checkout, so Python sees
 subsequent edits without reinstalling. Restart an already-running notebook kernel
 after editing imported modules. Reinstall after changing dependency metadata or
 console commands. The pipeline is tested with Python 3.13.

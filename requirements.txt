@@ -1,3 +1,15 @@
-# Install the local package and its pinned dependencies from pyproject.toml.
-# Run from the repository root.
+# Python >=3.11 (tested with Python 3.13).
+# Install from the repository root in your virtual environment:
+#   python -m pip install -r requirements.txt
+
+# PostgreSQL connections and bulk loading
+psycopg[binary]==3.3.6
+
+# .env configuration (provides the dotenv import)
+python-dotenv==1.2.4
+
+# Parquet extraction, metadata reading, and TextStore
+pyarrow==26.0.0
+
+# Local cmv_data package; keep dependency versions aligned with pyproject.toml.
 -e .
