@@ -13,9 +13,8 @@ from psycopg import sql
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_DIR / "database"))
-from SupabaseConnection import Database
-from parquet_loaders.metadata_staging import TABLE_KEYS, TABLE_SCHEMAS
+from cmv_data.SupabaseConnection import Database
+from cmv_data.parquet_loaders.metadata_staging import TABLE_KEYS, TABLE_SCHEMAS
 
 
 class LoadedDatabaseTests(unittest.TestCase):

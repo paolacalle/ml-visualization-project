@@ -1,7 +1,7 @@
 import tarfile
 from psycopg import sql
 
-from db_loaders._bulk import TableLoader
+from ._bulk import TableLoader
 
 
 class SourcesLoader(TableLoader):

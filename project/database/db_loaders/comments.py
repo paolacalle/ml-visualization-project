@@ -4,7 +4,7 @@ import tarfile
 from pathlib import Path
 from psycopg import sql
 
-from db_loaders._bulk import TableLoader
+from ._bulk import TableLoader
 
 
 class CommentsLoader(TableLoader):

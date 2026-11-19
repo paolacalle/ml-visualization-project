@@ -29,7 +29,7 @@ validate SQLite staging only. Database loading is a separate step through
 To use the class from another script under `project/database`:
 
 ```python
-from MetadataRunner import MetadataRunner
+from cmv_data.MetadataRunner import MetadataRunner
 
 def main():
     runner = MetadataRunner(
@@ -129,7 +129,7 @@ For example, from a script under `project/database` run at the repository root:
 import json
 from pathlib import Path
 import pyarrow.parquet as pq
-from parquet_loaders.metadata_staging import TABLE_SCHEMAS
+from cmv_data.parquet_loaders.metadata_staging import TABLE_SCHEMAS
 
 root = Path("project/data/processed/cmv-metadata/v1")
 index = json.loads((root / "discussion_index.json").read_text())

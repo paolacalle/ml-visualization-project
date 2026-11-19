@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cmv-data"
+version = "0.1.0"
+description = "Shared CMV metadata queries, local text lookup, and preparation tools"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "psycopg[binary]==3.3.6",
+    "python-dotenv==1.2.4",
+    "pyarrow==26.0.0",
+]
+
+[project.scripts]
+cmv-prepare-metadata = "cmv_data.MetadataRunner:main"
+cmv-load-metadata = "cmv_data.ParquetDatabaseLoader:main"
+
+# Preserve the existing source and SQL locations while installing one namespace.
+[tool.setuptools]
+packages = ["cmv_data", "cmv_data.db_loaders", "cmv_data.parquet_loaders"]
+package-dir = {cmv_data = "project/database"}
+include-package-data = false
+
+[tool.setuptools.package-data]
+cmv_data = ["queries/*.sql", "guides/*.md"]
+"cmv_data.db_loaders" = ["README.md"]
+"cmv_data.parquet_loaders" = ["README.md"]

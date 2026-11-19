@@ -4,6 +4,11 @@ Commands run from the repository root. Preparation uses local files; database
 commands use the existing `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and
 `DB_PASSWORD` environment settings loaded by `SupabaseConnection.Database`.
 
+Install the package first with `python -m pip install -e .`. The equivalent
+installed commands are `cmv-prepare-metadata` and `cmv-load-metadata`; they accept
+the same arguments as the Python commands below. Paths resolve from your current
+working directory. See [package setup](PACKAGE.md).
+
 ## Prepare metadata
 
 Logic: `MetadataRunner` reads each source once, maps records, reconciles duplicate

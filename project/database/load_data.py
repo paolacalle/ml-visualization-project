@@ -8,11 +8,11 @@ operation and is not the normal way to reload or query an existing database.
 import argparse
 from pathlib import Path
 import json
-from SupabaseConnection import Database
-from parquet_loaders.source_map import snapshot_sources
+from cmv_data.SupabaseConnection import Database
+from cmv_data.parquet_loaders.source_map import snapshot_sources
 from contextlib import closing
-from ArchiveReader import ArchiveReader
-from parquet_loaders.posts import map_post
+from cmv_data.ArchiveReader import ArchiveReader
+from cmv_data.parquet_loaders.posts import map_post
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 ARCHIVE_PATH = PROJECT_DIR / "data" / "raw" / "cmv.tar.bz2"

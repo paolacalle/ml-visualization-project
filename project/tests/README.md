@@ -1,5 +1,27 @@
 # Database data tests
 
+Install the package first from the repository root:
+
+```bash
+python -m pip install -e .
+```
+
+Tests import `cmv_data` through the installed package. `test_package.py` checks
+public imports outside the checkout, all package modules, caller-based dotenv
+discovery, literal passwords, environment precedence, and bundled query files.
+
+Team setup/download tests run offline with temporary text fixtures and mocked
+Storage responses:
+
+```bash
+python -m unittest discover -s project/tests -p 'test_team_setup.py' -v
+```
+
+They cover the pinned manifest, complete downloads, repeat-run caching, corruption
+repair, atomic replacement, signed-link scope, failure cleanup, owner signing,
+and query-result IDs. See [team setup](../../team-setup/TEAM_DATA.md) for the
+live starter commands and owner-only signed-link generation.
+
 After importing the real metadata release, verify the loaded `cmv` data with:
 
 ```bash

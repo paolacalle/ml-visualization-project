@@ -2,7 +2,7 @@
 
 import pyarrow as pa
 
-from parquet_loaders.comments import map_pair_comment
+from .comments import map_pair_comment
 
 
 PAIR_SCHEMA = pa.schema([

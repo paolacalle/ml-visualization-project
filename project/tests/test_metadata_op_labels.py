@@ -11,8 +11,7 @@ import pyarrow.parquet as pq
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_DIR / "database"))
-from parquet_loaders.op_labels import OP_LABEL_SCHEMA, map_op_label
+from cmv_data.parquet_loaders.op_labels import OP_LABEL_SCHEMA, map_op_label
 
 
 SOURCES = (

@@ -10,17 +10,17 @@ from pathlib import Path
 
 from psycopg import sql
 
-from db_loaders._bulk import PG_TYPES
-from db_loaders.comments import CommentsLoader
-from db_loaders.dataset import MetadataDataset
-from db_loaders.op_labels import OpLabelsLoader
-from db_loaders.pairs import PairsLoader
-from db_loaders.posts import PostsLoader
-from db_loaders.sources import SourcesLoader
-from db_loaders.thread_comments import ThreadCommentsLoader
-from db_loaders.threads import ThreadsLoader
-from parquet_loaders.metadata_staging import TABLE_KEYS, TABLE_SCHEMAS
-from parquet_loaders.source_map import map_sources
+from cmv_data.db_loaders._bulk import PG_TYPES
+from cmv_data.db_loaders.comments import CommentsLoader
+from cmv_data.db_loaders.dataset import MetadataDataset
+from cmv_data.db_loaders.op_labels import OpLabelsLoader
+from cmv_data.db_loaders.pairs import PairsLoader
+from cmv_data.db_loaders.posts import PostsLoader
+from cmv_data.db_loaders.sources import SourcesLoader
+from cmv_data.db_loaders.thread_comments import ThreadCommentsLoader
+from cmv_data.db_loaders.threads import ThreadsLoader
+from cmv_data.parquet_loaders.metadata_staging import TABLE_KEYS, TABLE_SCHEMAS
+from cmv_data.parquet_loaders.source_map import map_sources
 
 
 LOADERS = (SourcesLoader, PostsLoader, CommentsLoader, OpLabelsLoader,
@@ -156,7 +156,7 @@ def main():
     parser.add_argument("--batch-size", type=int, default=10000)
     parser.add_argument("--check", action="store_true", help="Read-only release and database preflight.")
     args = parser.parse_args()
-    from SupabaseConnection import Database
+    from cmv_data.SupabaseConnection import Database
     db = Database()
     try:
         loader = ParquetDatabaseLoader(db, args.dataset, schema=args.schema, batch_size=args.batch_size)

@@ -56,8 +56,8 @@ temporary table before merging. Comment parents may appear in later shards.
 From a script under `project/database`, run at the repository root:
 
 ```python
-from SupabaseConnection import Database
-from ParquetDatabaseLoader import ParquetDatabaseLoader
+from cmv_data import Database
+from cmv_data.ParquetDatabaseLoader import ParquetDatabaseLoader
 
 db = Database()
 try:

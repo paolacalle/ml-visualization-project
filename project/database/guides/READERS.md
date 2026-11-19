@@ -1,7 +1,8 @@
 # Readers: choose the input you have
 
-All commands run from the repository root. `PYTHONPATH=project/database` makes
-the existing database-module imports available to inline Python snippets.
+Install with `python -m pip install -e .` from the repository root first. The
+`cmv_data` imports work in any working directory; the relative dataset paths in
+these examples assume the repository root.
 
 ## ArchiveReader: raw JSON
 
@@ -11,11 +12,11 @@ one-based line number, and raw dictionary. The dictionary may contain an entire
 discussion's comments. Nothing is extracted to disk or inserted into a database.
 
 ```bash
-PYTHONPATH=project/database ./project/venv/bin/python - <<'PY'
+./project/venv/bin/python - <<'PY'
 import json
 from contextlib import closing
 from pathlib import Path
-from ArchiveReader import ArchiveReader
+from cmv_data.ArchiveReader import ArchiveReader
 
 source_map = json.loads(Path(
     "project/data/processed/cmv-metadata/source_map.json"
@@ -40,8 +41,8 @@ relevant shards, and filter batches by post ID. Yield dictionaries containing th
 declared database columns. This reader works without PostgreSQL or the archive.
 
 ```bash
-PYTHONPATH=project/database ./project/venv/bin/python - <<'PY'
-from db_loaders.dataset import MetadataDataset
+./project/venv/bin/python - <<'PY'
+from cmv_data.db_loaders.dataset import MetadataDataset
 
 dataset = MetadataDataset("project/data/processed/cmv-metadata/v1", batch_size=1000)
 print(dataset.validate())
@@ -65,8 +66,8 @@ its database ID. `validate()` checks the complete download separately from norma
 lookups. The reader does not download files or query PostgreSQL.
 
 ```bash
-PYTHONPATH=project/database ./project/venv/bin/python - <<'PY'
-from TextStore import TextStore
+./project/venv/bin/python - <<'PY'
+from cmv_data import TextStore
 
 store = TextStore("project/data/processed/cmv-text/v1", expected_version="v1")
 post = store.get_post("t3_37i8f6")
@@ -90,5 +91,5 @@ from text requests, for example with `WHERE content_available` in SQL.
 
 After downloading, run `store.validate()` once. Version mismatches, unknown IDs,
 missing files, and inconsistent row counts raise errors. See the
-[team setup guide](../../../TEAM_DATA.md) for the pinned release checksum and
+[team setup guide](../../../team-setup/TEAM_DATA.md) for the pinned release checksum and
 download layout.

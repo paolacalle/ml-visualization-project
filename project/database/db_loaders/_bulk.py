@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from psycopg import sql
 
-from parquet_loaders.metadata_staging import TABLE_KEYS, TABLE_SCHEMAS
+from ..parquet_loaders.metadata_staging import TABLE_KEYS, TABLE_SCHEMAS
 
 
 PG_TYPES = {"string": "text", "int64": "int8", "int32": "int4",

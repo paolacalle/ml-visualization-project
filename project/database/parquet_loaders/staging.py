@@ -4,7 +4,7 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-from parquet_loaders.comments import COMMENT_SCHEMA
+from .comments import COMMENT_SCHEMA
 
 
 COMMENT_COLUMNS = tuple(COMMENT_SCHEMA.names)
