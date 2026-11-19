@@ -157,6 +157,7 @@ activemq-data/
 
 # Environments
 .env
+cmv-text-download-links*.json
 .envrc
 .venv
 env/
