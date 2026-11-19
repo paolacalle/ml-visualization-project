@@ -9,8 +9,8 @@ from pathlib import Path, PurePosixPath
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from parquet_loaders.metadata_staging import TABLE_KEYS, TABLE_SCHEMAS
-from parquet_loaders.source_map import map_sources
+from .metadata_staging import TABLE_KEYS, TABLE_SCHEMAS
+from .source_map import map_sources
 
 
 DISCUSSION_TABLES = tuple(name for name in TABLE_SCHEMAS if name != "sources")

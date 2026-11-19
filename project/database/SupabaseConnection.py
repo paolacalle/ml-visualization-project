@@ -6,15 +6,21 @@ The direct-script entrypoint runs schema creation, not a connection-only check.
 """
 
 import psycopg
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from pathlib import Path
 import os
 
 class Database:
     """Own a psycopg connection shared by query helpers and the Parquet importer."""
     
-    def __init__(self):
-        """Connect immediately using the local environment; expose ``connection``."""
+    def __init__(self, *, env_file=None):
+        """Connect using environment variables and an optional dotenv file.
+
+        Without ``env_file``, look for .env from the working directory upward.
+        Supply an explicit path when running notebooks outside the checkout.
+        Existing environment variables take precedence over dotenv values.
+        """
+        self.env_file = env_file
         self.connection = self.connect()
         
     def connect(self):
@@ -23,7 +29,10 @@ class Database:
         Missing required environment keys raise ``KeyError``; connection errors
         propagate from psycopg. Passwords are passed as arguments, not URI-encoded.
         """
-        load_dotenv()
+        load_dotenv(
+            dotenv_path=self.env_file if self.env_file is not None else find_dotenv(usecwd=True),
+            interpolate=False,
+        )
         connection = psycopg.connect(
             host=os.environ["DB_HOST"],
             port=os.environ["DB_PORT"],
@@ -42,7 +51,8 @@ class Database:
         call uses a transaction/savepoint and returns fetched tuples for a result
         set, or None for statements without results. No string interpolation of
         parameter values is needed. Query-file paths are based on this module,
-        independent of the caller's working directory.
+        independent of the caller's working directory. SQL resources are included
+        in both editable and regular package installations.
         """
         if query.strip().lower().endswith(".sql"):
             sql_path = Path(__file__).resolve().parent / "queries" / query.strip()

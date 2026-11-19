@@ -10,8 +10,8 @@ from contextlib import closing
 from unittest import mock
 
 import test_metadata_runner as fixtures
-from MetadataRunner import MetadataRunner
-from parquet_loaders.metadata_staging import MetadataStaging
+from cmv_data.MetadataRunner import MetadataRunner
+from cmv_data.parquet_loaders.metadata_staging import MetadataStaging
 
 
 class MultiprocessMetadataRunnerTests(fixtures.MetadataRunnerTests):
@@ -32,7 +32,7 @@ class MultiprocessMetadataRunnerTests(fixtures.MetadataRunnerTests):
             writer_pids.append(os.getpid())
             return original(stage, *args, **kwargs)
 
-        with mock.patch("MetadataRunner.ProcessPoolExecutor", wraps=ProcessPoolExecutor) as pool:
+        with mock.patch("cmv_data.MetadataRunner.ProcessPoolExecutor", wraps=ProcessPoolExecutor) as pool:
             with mock.patch.object(MetadataStaging, "add_posts", observed):
                 parallel = self.runner(batch_size=1).run()
         self.assertEqual(pool.call_args.kwargs["max_workers"], 2)
@@ -88,7 +88,7 @@ class MultiprocessMetadataRunnerTests(fixtures.MetadataRunnerTests):
                 yield member, line, raw
 
         runner = self.runner()
-        with mock.patch("MetadataRunner.ProcessPoolExecutor", ImmediatePool):
+        with mock.patch("cmv_data.MetadataRunner.ProcessPoolExecutor", ImmediatePool):
             with closing(runner._prepared_records(records(), fixtures.SOURCE_MAP)) as prepared:
                 self.assertEqual(next(prepared)[1], 1)
                 self.assertEqual(len(reads), 4)

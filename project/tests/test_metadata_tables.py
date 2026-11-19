@@ -11,13 +11,12 @@ import pyarrow.parquet as pq
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_DIR / "database"))
-from parquet_loaders.comments import map_comment
-from parquet_loaders.metadata_staging import MetadataStaging, TABLE_SCHEMAS
-from parquet_loaders.op_labels import map_op_label
-from parquet_loaders.pairs import map_pair
-from parquet_loaders.posts import map_post, map_task_post
-from parquet_loaders.source_map import SOURCE_SCHEMA, map_sources
+from cmv_data.parquet_loaders.comments import map_comment
+from cmv_data.parquet_loaders.metadata_staging import MetadataStaging, TABLE_SCHEMAS
+from cmv_data.parquet_loaders.op_labels import map_op_label
+from cmv_data.parquet_loaders.pairs import map_pair
+from cmv_data.parquet_loaders.posts import map_post, map_task_post
+from cmv_data.parquet_loaders.source_map import SOURCE_SCHEMA, map_sources
 
 
 SOURCE_MAP = {

@@ -18,10 +18,9 @@ import pyarrow.parquet as pq
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_DIR / "database"))
-from MetadataRunner import MetadataRunner
-from parquet_loaders.metadata_parquet import MetadataParquetWriter, validate_metadata_dataset
-from parquet_loaders.metadata_staging import TABLE_SCHEMAS
+from cmv_data.MetadataRunner import MetadataRunner
+from cmv_data.parquet_loaders.metadata_parquet import MetadataParquetWriter, validate_metadata_dataset
+from cmv_data.parquet_loaders.metadata_staging import TABLE_SCHEMAS
 from test_metadata_runner import SOURCE_MAP, sample_records
 
 
@@ -164,14 +163,14 @@ class MetadataParquetTests(unittest.TestCase):
         shutil.copytree(self.output, downloaded)
         self.stage.unlink()
         self.archive.unlink()
-        with mock.patch("MetadataRunner.ArchiveReader", side_effect=AssertionError("No archive reads")):
+        with mock.patch("cmv_data.MetadataRunner.ArchiveReader", side_effect=AssertionError("No archive reads")):
             self.assertEqual(validate_metadata_dataset(downloaded)["discussions"], 2)
 
     def test_existing_release_or_partial_refuses_before_archive_processing(self):
         for path in (self.output, self.partial):
             with self.subTest(path=path):
                 path.mkdir()
-                with mock.patch("MetadataRunner.ArchiveReader", side_effect=AssertionError("Unexpected scan")):
+                with mock.patch("cmv_data.MetadataRunner.ArchiveReader", side_effect=AssertionError("Unexpected scan")):
                     with self.assertRaises(FileExistsError):
                         self.run_export()
                 self.assertFalse(self.stage.exists())
@@ -193,7 +192,7 @@ class MetadataParquetTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
 
     def test_verification_failure_keeps_release_unpublished(self):
-        with mock.patch("parquet_loaders.metadata_parquet.validate_metadata_dataset",
+        with mock.patch("cmv_data.parquet_loaders.metadata_parquet.validate_metadata_dataset",
                         side_effect=ValueError("verification failed")):
             with self.assertRaisesRegex(ValueError, "verification failed"):
                 self.run_export()

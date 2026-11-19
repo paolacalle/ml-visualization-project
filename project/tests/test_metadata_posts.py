@@ -16,9 +16,8 @@ import pyarrow.parquet as pq
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_DIR / "database"))
-from ArchiveReader import ArchiveReader
-from parquet_loaders.posts import POST_FIELDS, POST_SCHEMA, map_post
+from cmv_data.ArchiveReader import ArchiveReader
+from cmv_data.parquet_loaders.posts import POST_FIELDS, POST_SCHEMA, map_post
 
 
 TRAIN_MEMBER = "all/train_period_data.jsonlist.bz2"

@@ -13,9 +13,8 @@ import pyarrow.parquet as pq
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_DIR / "database"))
-from parquet_loaders.comments import COMMENT_SCHEMA
-from parquet_loaders.staging import CommentStaging
+from cmv_data.parquet_loaders.comments import COMMENT_SCHEMA
+from cmv_data.parquet_loaders.staging import CommentStaging
 
 
 def comment(comment_id="t1_child", post_id="t3_example", **values):

@@ -4,6 +4,10 @@ Run commands from the repository root: the directory containing `README.md`,
 `requirements.txt`, and `project/`. The examples use `./project/venv/bin/python`;
 an activated environment with the requirements installed works too.
 
+Install with `python -m pip install -e .` before using these examples. The
+installable namespace is `cmv_data`; its files remain under `project/database`.
+See the [package guide](PACKAGE.md) for imports and configuration.
+
 | Goal | Component | Short guide |
 | --- | --- | --- |
 | Inspect one raw JSON discussion | `ArchiveReader` | [Readers](READERS.md#archivereader-raw-json) |
@@ -44,7 +48,7 @@ discussion metadata takes precedence over task fallbacks. Identity lookups and
 parent-reference indexes avoid unnecessary updates and growing table scans.
 
 For analysis, use PostgreSQL queries plus `TextStore`; rebuilding the archive or
-reimporting metadata is unnecessary. Start with the [team download guide](../../../TEAM_DATA.md).
+reimporting metadata is unnecessary. Start with the [team download guide](../../../team-setup/TEAM_DATA.md).
 
 ## More detail
 

@@ -16,10 +16,9 @@ from unittest import mock
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_DIR / "database"))
-from ArchiveReader import ArchiveReader
-from MetadataRunner import MetadataRunner
-from parquet_loaders.metadata_staging import MetadataStaging
+from cmv_data.ArchiveReader import ArchiveReader
+from cmv_data.MetadataRunner import MetadataRunner
+from cmv_data.parquet_loaders.metadata_staging import MetadataStaging
 
 
 SOURCE_MAP = {
@@ -91,7 +90,7 @@ class MetadataRunnerTests(unittest.TestCase):
 
     def test_single_archive_open_routes_all_sources_and_returns_validated_counts(self):
         self.write_archive()
-        with mock.patch("ArchiveReader.tarfile.open", wraps=tarfile.open) as opened:
+        with mock.patch("cmv_data.ArchiveReader.tarfile.open", wraps=tarfile.open) as opened:
             report = self.runner(batch_size=1).run()
         self.assertEqual(opened.call_count, 1)
         self.assertEqual(report["status"], "validated_staging")

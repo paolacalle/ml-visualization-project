@@ -16,9 +16,8 @@ import pyarrow.parquet as pq
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_DIR / "database"))
-from ArchiveReader import ArchiveReader
-from parquet_loaders.pairs import (
+from cmv_data.ArchiveReader import ArchiveReader
+from cmv_data.parquet_loaders.pairs import (
     PAIR_SCHEMA, THREAD_SCHEMA, THREAD_COMMENT_SCHEMA, map_pair,
 )
 

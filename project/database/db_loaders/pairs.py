@@ -1,4 +1,4 @@
-from db_loaders._bulk import TableLoader
+from ._bulk import TableLoader
 
 
 class PairsLoader(TableLoader):

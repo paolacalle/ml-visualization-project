@@ -20,16 +20,15 @@ from psycopg import sql
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_DIR / "database"))
-from MetadataRunner import MetadataRunner
-from ParquetDatabaseLoader import LOADERS, ParquetDatabaseLoader
-from db_loaders.comments import CommentsLoader
-from db_loaders.dataset import MetadataDataset
-from db_loaders.op_labels import OpLabelsLoader
-from db_loaders.posts import PostsLoader
-from db_loaders.sources import SourcesLoader
-from db_loaders.thread_comments import ThreadCommentsLoader
-from parquet_loaders.metadata_staging import TABLE_SCHEMAS
+from cmv_data.MetadataRunner import MetadataRunner
+from cmv_data.ParquetDatabaseLoader import LOADERS, ParquetDatabaseLoader
+from cmv_data.db_loaders.comments import CommentsLoader
+from cmv_data.db_loaders.dataset import MetadataDataset
+from cmv_data.db_loaders.op_labels import OpLabelsLoader
+from cmv_data.db_loaders.posts import PostsLoader
+from cmv_data.db_loaders.sources import SourcesLoader
+from cmv_data.db_loaders.thread_comments import ThreadCommentsLoader
+from cmv_data.parquet_loaders.metadata_staging import TABLE_SCHEMAS
 from test_metadata_runner import SOURCE_MAP, sample_records
 
 

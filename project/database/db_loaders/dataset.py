@@ -6,8 +6,8 @@ from pathlib import Path
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
-from parquet_loaders.metadata_parquet import _safe_path, validate_metadata_dataset
-from parquet_loaders.metadata_staging import TABLE_SCHEMAS
+from ..parquet_loaders.metadata_parquet import _safe_path, validate_metadata_dataset
+from ..parquet_loaders.metadata_staging import TABLE_SCHEMAS
 
 
 class MetadataDataset:

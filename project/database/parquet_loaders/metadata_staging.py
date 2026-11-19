@@ -4,12 +4,12 @@ import sqlite3
 
 import pyarrow as pa
 
-from parquet_loaders.comments import COMMENT_SCHEMA
-from parquet_loaders.op_labels import OP_LABEL_SCHEMA
-from parquet_loaders.pairs import PAIR_SCHEMA, THREAD_SCHEMA, THREAD_COMMENT_SCHEMA
-from parquet_loaders.posts import POST_SCHEMA
-from parquet_loaders.source_map import SOURCE_SCHEMA, map_sources
-from parquet_loaders.staging import CommentStaging
+from .comments import COMMENT_SCHEMA
+from .op_labels import OP_LABEL_SCHEMA
+from .pairs import PAIR_SCHEMA, THREAD_SCHEMA, THREAD_COMMENT_SCHEMA
+from .posts import POST_SCHEMA
+from .source_map import SOURCE_SCHEMA, map_sources
+from .staging import CommentStaging
 
 
 TABLE_SCHEMAS = {

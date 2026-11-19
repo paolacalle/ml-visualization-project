@@ -14,8 +14,7 @@ import pyarrow.parquet as pq
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_DIR / "database"))
-from TextStore import TextStore
+from cmv_data.TextStore import TextStore
 
 
 POST_COLUMNS = ["post_id", "title", "body"]
@@ -132,7 +131,7 @@ class TextStoreTests(unittest.TestCase):
         self.assertIsNone(by_id["t1_a2"])
 
     def test_empty_discussion_does_not_read_parquet(self):
-        with patch("TextStore.pq.read_table") as read:
+        with patch("cmv_data.TextStore.pq.read_table") as read:
             self.assertEqual(self.store.get_comments("t3_empty"), [])
             read.assert_not_called()
 
@@ -163,7 +162,7 @@ class TextStoreTests(unittest.TestCase):
         ]
         original = copy.deepcopy(rows)
         read_table = pq.read_table
-        with patch("TextStore.pq.read_table", wraps=read_table) as read:
+        with patch("cmv_data.TextStore.pq.read_table", wraps=read_table) as read:
             result = self.store.attach_comment_text(rows)
             self.assertEqual(read.call_count, 2, "Each of two files should be read once")
         self.assertEqual(rows, original)
@@ -181,7 +180,7 @@ class TextStoreTests(unittest.TestCase):
         self.assertEqual([r["body"] for r in result], [None, ""])
 
     def test_empty_batch_does_not_read_parquet(self):
-        with patch("TextStore.pq.read_table") as read:
+        with patch("cmv_data.TextStore.pq.read_table") as read:
             self.assertEqual(self.store.attach_comment_text([]), [])
             read.assert_not_called()
 
