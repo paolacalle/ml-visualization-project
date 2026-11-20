@@ -12,9 +12,12 @@ delta classifier.
 
 ## Building the dataset
 
+Install into the project venv (Anaconda's older protobuf breaks the DeBERTa
+tokenizer):
+
 ```bash
-python -m pip install -r project/notebooks/fallacy-model/requirements.txt
-python project/notebooks/fallacy-model/build_dataset.py
+.venv/bin/python -m pip install -r requirements.txt -r project/notebooks/fallacy-model/requirements.txt
+.venv/bin/python project/notebooks/fallacy-model/build_dataset.py
 ```
 
 This downloads the raw data (pinned commits) into `project/data/raw/fallacy/`
@@ -47,3 +50,54 @@ group crosses splits), `context` (article or thread title), `n_words`.
   windows and aggregate them, rather than truncating the whole comment.
 - **Not CMV.** Hand-label a few hundred CMV windows as the real test set and
   for threshold tuning.
+
+## Training
+
+```bash
+# smoke test (~1 min): checks the pipeline, too few steps to learn much
+.venv/bin/python project/notebooks/fallacy-model/train.py --run-name smoke \
+    --max-train-samples 480 --max-eval-samples 240 --epochs 1
+
+# DeBERTa-v3-base, full data (~8 min/epoch on an M4, up to 5 epochs)
+.venv/bin/python project/notebooks/fallacy-model/train.py --run-name deberta-base
+
+# DeBERTa-v3-large, overnight
+.venv/bin/python project/notebooks/fallacy-model/train.py --run-name deberta-large \
+    --model microsoft/deberta-v3-large --batch-size 8 --grad-accum 2 --lr 1e-5
+```
+
+`train.py` is a plain PyTorch loop (no `accelerate`/`datasets`), running on
+Apple's GPU (MPS) when available. It:
+
+- trains a 9-way classifier with sqrt-inverse-frequency class weights
+  (`--class-weighting`), linear warmup/decay and gradient clipping;
+- evaluates on dev after each epoch, keeps the best checkpoint by
+  `--select-metric` (default `macro_f1`), and stops early after `--patience`
+  epochs without improvement;
+- fits a temperature on dev logits (saved as `best/calibration.json`) so
+  `softmax(logits / T)` gives calibrated probabilities for downstream features;
+- reports on test: 9-way macro-F1, fallacy-only macro-F1, binary
+  fallacy-vs-none precision/recall/F1, calibration error, and each metric per `source`.
+
+Outputs go to `project/data/models/fallacy/<run-name>/`: `best/` (model,
+tokenizer, temperature), `metrics.json`, `test_report.txt`,
+`test_confusion.csv`, `{dev,test}_predictions.parquet` (per-class probabilities
+per row, for error analysis) and `train_log.jsonl`.
+
+Useful flags: `--drop-sources sahai_random_neg` (train without unverified
+negatives), `--with-context` (feed the thread/article title as a first
+segment), `--max-length` (default 160 tokens, covering ~97% of texts).
+
+### Apple-GPU (MPS) notes
+
+- transformers v5 loads DeBERTa-v3 in its stored fp16, which crashes MPS, so
+  the script forces fp32.
+- Batches are padded to multiples of 32 tokens and the MPS cache is cleared every
+  50 steps. Without that, every new batch length compiles a new graph and the
+  run ran out of memory after about 100 steps.
+- transformers 5.3 converts DeBERTa-v3's sentencepiece tokenizer without adding
+  `[CLS]`/`[SEP]`. The classifier reads the first token, so without the fix
+  DeBERTa learned very slowly (0.32 dev macro-F1 after 2 epochs, vs DistilRoBERTa's
+  0.68 on 3k examples). `ensure_special_tokens()` in `train.py` patches this and
+  the fix is saved with `best/`. **Any other script that loads
+  `microsoft/deberta-v3-*` straight from the Hub must call it too.**
