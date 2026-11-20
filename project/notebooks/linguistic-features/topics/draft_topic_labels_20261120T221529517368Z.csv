@@ -1,0 +1,27 @@
+topic_id,broad_topic,cluster_label
+-1,Other / unclear,HDBSCAN outliers
+0,Politics & law,Government and elections
+1,"Education, work & economics",Taxation and social spending
+2,Ethics & religion,God and the meaning of life
+3,"Media, leisure & everyday life",Film and popular culture
+4,Identity & relationships,Race and racism
+5,"Education, work & economics",Schools and higher education
+6,Politics & law,Criminal justice and punishment
+7,"Media, leisure & everyday life",Reddit and online communities
+8,Identity & relationships,Sexual orientation and gender identity
+9,Health & reproduction,Substance use and drug policy
+10,Technology & environment,Consumer technology and digital piracy
+11,Identity & relationships,Feminism and gender roles
+12,Ethics & religion,Animal ethics and diet
+13,Ethics & religion,Ethics of life and death
+14,Technology & environment,Climate and energy and space
+15,Identity & relationships,Dating and marriage
+16,Politics & law,Firearms and policing
+17,Identity & relationships,Parenthood and family
+18,Health & reproduction,Abortion and contraception
+19,Identity & relationships,Bodies and social norms
+20,"Media, leisure & everyday life",Video games
+21,Technology & environment,Driving and transport
+22,"Media, leisure & everyday life",Food and restaurants
+23,"Media, leisure & everyday life",Social media and online behavior
+24,"Media, leisure & everyday life",Sports and recreation
