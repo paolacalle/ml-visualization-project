@@ -84,6 +84,22 @@ tokenizer, temperature), `metrics.json`, `test_report.txt`,
 `test_confusion.csv`, `{dev,test}_predictions.parquet` (per-class probabilities
 per row, for error analysis) and `train_log.jsonl`.
 
+### Results: `deberta-base` (DeBERTa-v3-base, default settings)
+
+Best dev epoch 4 of 5, ~32 min of training on an M4. Test (1,418 rows):
+accuracy 0.81, **macro-F1 0.77**, binary fallacy-vs-none F1 0.82. Calibration
+error drops from 0.13 to 0.03 with the dev-fitted temperature (T = 1.60).
+
+| Test subset | Macro-F1 | Binary F1 |
+|---|---|---|
+| CoCoLoFa | 0.83 | 0.88 |
+| Sahai annotated (real Reddit) | 0.60 | 0.68 |
+
+Per class, F1 ranges from 0.84 (appeal to nature) to 0.58 (hasty
+generalization, the weakest). Most errors are fallacies predicted as `none`
+and vice versa, not confusions between fallacy types. The real-Reddit numbers
+are the better guide to CMV performance.
+
 Useful flags: `--drop-sources sahai_random_neg` (train without unverified
 negatives), `--with-context` (feed the thread/article title as a first
 segment), `--max-length` (default 160 tokens, covering ~97% of texts).

@@ -10,7 +10,7 @@ Usage (from the repo root, with the project venv):
     .venv/bin/python project/notebooks/fallacy-model/train.py --run-name smoke \
         --max-train-samples 400 --max-eval-samples 200 --epochs 1
 
-    # full run (base model, roughly 1-2 h on an M4)
+    # full run (base model, ~32 min on an M4)
     .venv/bin/python project/notebooks/fallacy-model/train.py --run-name deberta-base
 
     # overnight run

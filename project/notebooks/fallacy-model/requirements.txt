@@ -9,3 +9,6 @@ transformers==5.3.0
 sentencepiece==0.2.3
 protobuf==7.36.2
 scikit-learn==1.9.1
+# Fallacy-vs-delta analysis (project/notebooks/fallacy-analysis)
+statsmodels==0.15.0
+matplotlib==3.11.2
