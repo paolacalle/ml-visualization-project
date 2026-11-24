@@ -92,8 +92,10 @@ def lexical_features(replies):
             key.removeprefix("feature_politeness_==").removesuffix("==").replace("_", " "): int(value)
             for key, value in strategies.items()
         }
+        
         if not {*COURTESY, "Please start"} <= binary.keys():
             raise ValueError(f"Unrecognized ConvoKit strategy keys: {list(strategies)}")
+        
         courtesy = sum(binary[name] for name in COURTESY[:-1]) + int(binary["Please"] or binary["Please start"])
         hedges = hedge_spans(doc)
         word_count = len(WORDS.findall(doc.text))

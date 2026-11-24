@@ -64,9 +64,9 @@ def summarize_predictions(pairs, p4, p6):
     })
 
 
-def adjusted_coefficients(pairs):
+def adjusted_coefficients(pairs, features=FEATURES):
     """Refit on resampled discussions while keeping the full-training feature scale fixed."""
-    x = pairs[FEATURES]
+    x = pairs[features]
     y = pairs["a_wins"].to_numpy()
     pipeline = paired.make_paired_classifier().fit(x, y)
     scaler = pipeline.named_steps["standardscaler"]
@@ -78,9 +78,9 @@ def adjusted_coefficients(pairs):
         for weights in discussion_weights(pairs["post_id"])
     ])
     low, high = np.quantile(draws, [0.025, 0.975], axis=0)
-    informative = {feature: pairs[feature].abs().gt(paired.TIE_TOLERANCE) for feature in FEATURES}
+    informative = {feature: pairs[feature].abs().gt(paired.TIE_TOLERANCE) for feature in features}
     return pd.DataFrame({
-        "feature": FEATURES, "coefficient": point, "ci_low": low, "ci_high": high,
+        "feature": features, "coefficient": point, "ci_low": low, "ci_high": high,
         "training_feature_sd": scaler.scale_,
         "informative_pairs": [int(mask.sum()) for mask in informative.values()],
         "informative_discussions": [pairs.loc[mask, "post_id"].nunique() for mask in informative.values()],

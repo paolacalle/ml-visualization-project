@@ -99,15 +99,22 @@ def make_paired_classifier():
     return make_pipeline(StandardScaler(), LogisticRegression(C=1, max_iter=1000))
 
 
-def evaluate_differences(frame, differences):
-    """Fit on the supplied signed differences using the shared discussion folds."""
+def fit_paired_folds(frame, differences):
+    """Yield each fitted pipeline and its validation mask."""
     y = frame["a_wins"]
-    scores = np.full(len(frame), np.nan)
     for fold in range(1, FOLDS + 1):
         validation = frame["fold"].eq(fold)
         train = ~validation
         model = make_paired_classifier()
         model.fit(differences.loc[train], y.loc[train])
+        yield fold, validation, model
+
+
+def evaluate_differences(frame, differences):
+    """Fit on the supplied signed differences using the shared discussion folds."""
+    y = frame["a_wins"]
+    scores = np.full(len(frame), np.nan)
+    for _, validation, model in fit_paired_folds(frame, differences):
         scores[validation.to_numpy()] = model.predict_proba(differences.loc[validation])[:, 1]
     return scores, {
         "roc_auc": roc_auc_score(y, scores),
